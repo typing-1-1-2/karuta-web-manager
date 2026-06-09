@@ -14,11 +14,11 @@ function renderAlbum(){
     .map(b=>_loadAlbumBg(b.id));
   if(bgPromises.length){
     Promise.all(bgPromises).then(()=>{
-      list.innerHTML = albumBooks.map((b,bi)=>_renderAlbumGroup(b,bi)).join('');
-      wireImgs(); _applyCustomImgsToAlbum();
+      list.innerHTML = '<div class="alb-list-grid">' + albumBooks.map((b,bi)=>_renderAlbumGroup(b,bi)).join('') + '</div>';
+    wireImgs(); _applyCustomImgsToAlbum();
     });
   } else {
-    list.innerHTML = albumBooks.map((b,bi) => _renderAlbumGroup(b, bi)).join('');
+    list.innerHTML = '<div class="alb-list-grid">' + albumBooks.map((b,bi) => _renderAlbumGroup(b, bi)).join('') + '</div>';
     wireImgs();
     _applyCustomImgsToAlbum();
   }
