@@ -1,0 +1,73 @@
+---
+// PanelPersonajes.astro
+---
+<div class="tab-panel active" id="panel-characters">
+  <div class="toolbar">
+    <input type="text" id="searchChar" data-i18n-ph="searchPlaceholder" placeholder="Buscar personaje, serie o código…" oninput="renderChars()">
+    <select id="filterQual" onchange="renderChars()">
+      <option value="" data-i18n="allQualities">Todas las calidades</option>
+      <option value="4">★★★★</option><option value="3">★★★</option>
+      <option value="2">★★</option><option value="1">★</option><option value="0">— Sin ★</option>
+    </select>
+    <select id="sortChar" onchange="renderChars()">
+      <option value="date" data-i18n="newest">Más recientes</option>
+      <option value="burn" data-i18n="highestBurn">Mayor burn</option>
+      <option value="wishlists" data-i18n="mostWished">Más pedidas</option>
+      <option value="alpha" data-i18n="nameAZ">Nombre A–Z</option>
+      <option value="edition" data-i18n="byEdition">Edición</option>
+      <option value="print_asc" data-i18n="printAsc">Print ↑</option>
+      <option value="print_desc" data-i18n="printDesc">Print ↓</option>
+      <option value="effort" data-i18n="byEffort">Effort</option>
+    </select>
+    <button class="btn-ghost toolbar-toggle-btn" onclick="this.nextElementSibling.classList.toggle('open');this.setAttribute('data-i18n',this.nextElementSibling.classList.contains('open')?'lessFilters':'moreFilters');applyI18n()" data-i18n="moreFilters">▼ Más filtros</button>
+    <div class="toolbar-extra">
+      <select id="filterPrint" onchange="renderChars()" style="flex:1;min-width:130px">
+        <option value="" data-i18n="allPrints">Todos los prints</option>
+        <option value="sp">SP (1–9)</option>
+        <option value="lp">LP (10–99)</option>
+        <option value="mp">MP (100–999)</option>
+        <option value="hp">HP (1000+)</option>
+      </select>
+      <select id="filterEdition" onchange="renderChars()" style="flex:1;min-width:120px">
+        <option value="" data-i18n="allEditions">Todas las ediciones</option>
+        <option value="1">Ed. 1</option><option value="2">Ed. 2</option><option value="3">Ed. 3</option>
+        <option value="4">Ed. 4</option><option value="5">Ed. 5</option><option value="6">Ed. 6</option><option value="7">Ed. 7</option>
+      </select>
+      <select id="filterMorphed" onchange="renderChars()" style="flex:1;min-width:130px">
+        <option value="" data-i18n="morphedAll">Morphed: todos</option>
+        <option value="yes">✨ Morphed</option>
+        <option value="no">Sin morphed</option>
+      </select>
+      <select id="filterFrame" onchange="renderChars()" style="flex:1;min-width:130px">
+        <option value="" data-i18n="framesAll">Marcos: todos</option>
+        <option value="yes">Con marco</option>
+        <option value="no">Sin marco</option>
+      </select>
+      <select id="filterTag" onchange="renderChars()" style="flex:1;min-width:130px">
+        <option value="" data-i18n="allTags">Todos los tags</option>
+      </select>
+      <select id="filterGrabbed" onchange="renderChars()" style="flex:1;min-width:140px">
+        <option value="" data-i18n="allOrigins">Todos los orígenes</option>
+        <option value="own" data-i18n="grabOwn">Grabadas por mí</option>
+        <option value="other" data-i18n="grabOther">Recibidas</option>
+      </select>
+      <button class="btn-ghost" id="btnClearFilters" onclick="clearCharFilters()" style="font-size:12px;padding:7px 12px;white-space:nowrap" data-i18n="clear">Limpiar</button>
+    </div>
+  </div>
+  <div class="section-header">
+    <span class="section-title" id="charCount">0 cartas</span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn-ghost" id="charSelectToggle" onclick="charSelectionToggle()" style="font-size:12px;padding:6px 12px;gap:6px" data-i18n="select">☑ Seleccionar</button>
+    </div>
+  </div>
+  <div class="char-sel-bar hidden" id="charSelBar">
+    <span class="char-sel-count" id="charSelCount" data-i18n="noSelection">Sin selección</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-ghost" onclick="charSelAll()" style="font-size:12px;padding:5px 10px" data-i18n="selectAll">Seleccionar todas</button>
+      <button class="btn-ghost" onclick="charSelClear()" style="font-size:12px;padding:5px 10px" data-i18n="deselect">Deseleccionar</button>
+      <button class="btn-new-album" id="charSelCopyBtn" onclick="charSelCopy()" style="font-size:12px;padding:5px 14px;gap:6px" data-i18n="copyIDs">Copiar IDs</button>
+    </div>
+  </div>
+  <div class="card-grid" id="charGrid"></div>
+  <div id="charsSentinel" style="height:1px;margin-top:1rem"></div>
+</div>

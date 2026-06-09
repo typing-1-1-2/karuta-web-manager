@@ -1,0 +1,137 @@
+---
+// PanelSketches.astro
+---
+<div class="tab-panel" id="panel-sketches">
+  <div class="sketch-layout">
+    <div class="sketch-controls">
+      <h2 style="font-size:18px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:8px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        <span data-i18n="sketchTitle">Convertidor de Sketches</span>
+      </h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:1.25rem" data-i18n="sketchDesc">Genera un sketch por capas listo para pintar en el Studio.</p>
+      <div class="sketch-drop-zone" id="sketchDrop" onclick="document.getElementById('sketchFileIn').click()"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="sketchHandleDrop(event)">
+        <input type="file" id="sketchFileIn" accept="image/*" style="display:none" onchange="sketchLoadFile(this.files[0])">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span data-i18n="dropImage">Arrastra una imagen o haz clic</span>
+        <small>JPG, PNG, WebP…</small>
+      </div>
+      <div class="sketch-field-group">
+        <label class="sketch-label">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c-4.97 0-9-3.134-9-7 0-1.44.615-2.8 1.7-3.9C6.545 9.702 9.1 8.9 12 8.9s5.455.802 7.3 2.2C20.385 12.2 21 13.56 21 15c0 3.866-4.03 7-9 7z"/><path d="M12 8.9V3M9 6l3-3 3 3"/></svg>
+          <span data-i18n="availableInk">Ink disponible</span>
+        </label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" id="sketchInk" class="sketch-input" value="23935" min="1" max="9999999" oninput="sketchUpdateInkInfo()">
+          <span class="sketch-ink-info" id="sketchInkInfo"></span>
+        </div>
+        <p class="sketch-hint" data-i18n="inkHint">Cada píxel pintado consume 1 de tinta.</p>
+      </div>
+      <div class="sketch-field-group">
+        <label class="sketch-label">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+          <span data-i18n="canvasRes">Resolución del canvas</span>
+        </label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="number" id="sketchW" class="sketch-input" value="274" min="50" max="2000" style="width:80px">
+          <span style="color:var(--text3)">×</span>
+          <input type="number" id="sketchH" class="sketch-input" value="405" min="50" max="2000" style="width:80px">
+          <button class="btn-ghost" onclick="sketchDetectSize()" style="font-size:12px;padding:6px 10px">Auto</button>
+        </div>
+        <p class="sketch-hint" data-i18n="canvasHint">Tamaño real del canvas del Studio</p>
+      </div>
+      <div class="sketch-field-group">
+        <label class="sketch-label">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+          <span data-i18n="colorMode">Modo de color</span>
+        </label>
+        <select id="sketchMode" class="sketch-input" onchange="sketchUpdateInkInfo()">
+          <option value="full" data-i18n="fullColor">Color completo (52 colores)</option>
+          <option value="pro" data-i18n="proSketch">Sketch profesional</option>
+          <option value="gray" data-i18n="grayscale">Escala de grises</option>
+          <option value="limited" data-i18n="limitedPalette">Paleta limitada (ahorra ink)</option>
+        </select>
+      </div>
+      <div class="sketch-field-group">
+        <label class="sketch-label">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <span data-i18n="genMode">Modo de generación</span>
+        </label>
+        <select id="sketchLayerMode" class="sketch-input">
+          <option value="layers" data-i18n="byLayers">Por capas (recomendado)</option>
+          <option value="flat" data-i18n="flatImage">Imagen plana (sin capas)</option>
+        </select>
+        <p class="sketch-hint" data-i18n="layersHint">Las capas dividen el sketch por tipo: base → sombras → contornos → brillos.</p>
+      </div>
+      <div class="sketch-field-group">
+        <label class="sketch-label">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
+          <span data-i18n="noiseCleaning">Limpieza de ruido</span>
+        </label>
+        <select id="sketchCleanup" class="sketch-input">
+          <option value="median+clean" data-i18n="maxClean">Máxima limpieza (recomendado)</option>
+          <option value="median" data-i18n="onlySmooth">Solo suavizado previo</option>
+          <option value="clean" data-i18n="onlyIsolated">Solo eliminar píxeles aislados</option>
+          <option value="none" data-i18n="noClean">Sin limpieza (más detalle)</option>
+        </select>
+        <p class="sketch-hint" data-i18n="noiseHint">Elimina píxeles sueltos y suaviza transiciones de color antes de cuantizar.</p>
+      </div>
+      <button class="btn-new-album" id="sketchGenBtn" onclick="sketchGenerate()" disabled style="width:100%;margin-top:4px;justify-content:center;gap:8px;font-size:14px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        <span data-i18n="generateSketch">Generar sketch</span>
+      </button>
+      <div id="sketchActionBtns" style="display:none;flex-direction:column;gap:6px;margin-top:8px">
+        <button class="btn-ghost" onclick="sketchExport()" style="width:100%;justify-content:center;font-size:13px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span data-i18n="exportFinal">Exportar imagen final</span>
+        </button>
+        <button class="btn-ghost" id="sketchExportLayersBtn" onclick="sketchExportLayers()" style="width:100%;justify-content:center;font-size:13px;border-color:var(--accent2);color:var(--accent2)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+          <span data-i18n="exportLayers">Exportar capas (.zip)</span>
+        </button>
+        <button class="btn-ghost" onclick="sketchSave()" style="width:100%;justify-content:center;font-size:13px;border-color:var(--teal);color:var(--teal)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span data-i18n="saveGallery">Guardar en galería</span>
+        </button>
+      </div>
+    </div>
+    <div class="sketch-preview-area">
+      <div class="sketch-preview-header">
+        <span id="sketchPreviewLabel" style="font-size:13px;color:var(--text3)"></span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:12px;color:var(--text3);display:flex;align-items:center;gap:5px;cursor:pointer">
+            <input type="checkbox" id="sketchShowOrig" onchange="sketchToggleOrig(this.checked)" style="cursor:pointer"> Original
+          </label>
+        </div>
+      </div>
+      <div class="sketch-canvas-wrap">
+        <canvas id="sketchCanvas" class="sketch-canvas"></canvas>
+        <canvas id="sketchOrigCanvas" class="sketch-canvas sketch-orig-overlay" style="display:none"></canvas>
+        <div class="sketch-empty-state" id="sketchEmpty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <p data-i18n="dropImage">Carga una imagen para empezar</p>
+        </div>
+      </div>
+      <div class="sketch-stats" id="sketchStats" style="display:none"></div>
+      <div id="sketchLayersPanel" style="display:none;margin-top:1.25rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:13px;font-weight:600;color:var(--text2)" data-i18n="generatedLayers">Capas generadas</span>
+          <span style="font-size:11px;color:var(--text3)" id="sketchLayerInfo"></span>
+        </div>
+        <div class="sketch-layers-grid" id="sketchLayersGrid"></div>
+      </div>
+    </div>
+  </div>
+  <div class="sketch-palette-section">
+    <div class="sketch-label" style="margin-bottom:8px" data-i18n="palette">Paleta (52 colores del Studio) — clic para copiar</div>
+    <div class="sketch-palette-grid" id="sketchPaletteGrid"></div>
+  </div>
+  <div class="sketch-palette-section" style="margin-top:1rem">
+    <div class="sketch-label" style="margin-bottom:12px" data-i18n="gallery">Galería guardada</div>
+    <div class="sketch-gallery" id="sketchGallery">
+      <div class="sketch-gal-empty" data-i18n="noSketches">No hay sketches guardados aún.</div>
+    </div>
+  </div>
+</div>

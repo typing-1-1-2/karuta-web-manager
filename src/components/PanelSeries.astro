@@ -1,0 +1,17 @@
+---
+// PanelSeries.astro
+---
+<div class="tab-panel" id="panel-series">
+  <div class="toolbar">
+    <input type="text" id="searchSeries" data-i18n-ph="searchSeries" placeholder="Buscar serie…" oninput="renderSeries()">
+    <select id="sortSeries" onchange="renderSeries()">
+      <option value="count" data-i18n="mostCards">Más cartas</option>
+      <option value="burn" data-i18n="highestBurn">Mayor burn</option>
+      <option value="alpha" data-i18n="nameAZSort">Nombre A–Z</option>
+    </select>
+  </div>
+  <div class="series-list" id="seriesList"></div>
+  <div class="show-more-wrap">
+    <button class="btn-show-more" id="btnMoreSeries" onclick="moreSeries()" style="display:none" data-i18n="moreSeries">Ver más series</button>
+  </div>
+</div>

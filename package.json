@@ -1,0 +1,19 @@
+{
+  "name": "karuta-web-manager",
+  "type": "module",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "astro": "^6.4.4",
+    "nanostores": "^1.3.0"
+  },
+  "description": "Web manager for Karuta Discord bot collections"
+}

@@ -1,0 +1,66 @@
+---
+// PanelStats.astro
+---
+<div class="tab-panel" id="panel-stats">
+  <div class="stat-kpi-grid" id="statKpiGrid"></div>
+  <div class="stat-lucky-card" id="statLucky"></div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3><span data-i18n="printByQuality">Print mediana por calidad</span> <span style="font-size:10px;color:var(--text3)" data-i18n="ownGrabs">(solo grabs propios)</span></h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="cPrintByQuality"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3><span data-i18n="wlVsPrint">WL promedio → print promedio</span> <span style="font-size:10px;color:var(--text3)" data-i18n="correlation">(correlación)</span></h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="cWlVsPrint"></canvas></div>
+    </div>
+    <div class="chart-card" style="grid-column:1/-1">
+      <h3><span data-i18n="q4RateMonthly">Tasa ★★★★ mensual vs total grabs</span> <span style="font-size:10px;color:var(--text3)" data-i18n="ownGrabs">(solo grabs propios)</span></h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="cQ4Rate"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3 data-i18n="grabsByWeekday">Grabs por día de la semana</h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="cWeekday"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3 data-i18n="activeHour">Hora del día más activa</h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="cHours"></canvas></div>
+    </div>
+    <div class="chart-card" style="grid-column:1/-1">
+      <h3><span data-i18n="topSeriesByPrint">Top series por print mediana</span> <span style="font-size:10px;color:var(--text3)" data-i18n="minGrabs">(mín. 5 grabs — menor = mejor suerte)</span></h3>
+      <div class="chart-wrap" id="topSeriesWrap" style="height:380px"><canvas id="cSeries"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3 data-i18n="qualityDist2">Distribución calidad</h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="cQuality"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3 data-i18n="cardsByEdition">Cartas por edición</h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="cEdition"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3 data-i18n="printDist">Distribución de prints (rangos)</h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="cPrints"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3 data-i18n="purityGrades">Purity grades (workers)</h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="cPurity"></canvas></div>
+    </div>
+    <div class="chart-card" style="grid-column:1/-1">
+      <h3 data-i18n="monthlyActivity">Actividad mensual de grabs</h3>
+      <div class="chart-wrap" style="height:240px"><canvas id="cMonths"></canvas></div>
+    </div>
+    <div class="chart-card" style="grid-column:1/-1">
+      <h3 data-i18n="cumulativeCollection">Colección acumulada (grabs propios)</h3>
+      <div class="chart-wrap" style="height:220px"><canvas id="cCumulative"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3 data-i18n="effortByTag">Worker effort por tag</h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="cEffort"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3 data-i18n="q4ByEdition">★★★★ grabadas por edición</h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="cQ4ByEd"></canvas></div>
+    </div>
+  </div>
+</div>
