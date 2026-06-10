@@ -420,6 +420,8 @@ function _showDashboard(){
 
   // buildAll sets up data + metrics/badges, then we render the active section
   buildAll();
+  // Ensure badges are always visible regardless of page
+  requestAnimationFrame(buildTabBadges);
 
   // Render the section for this specific page (chunk functions are already loaded)
   _updateSidebarStats();
@@ -496,6 +498,12 @@ function buildTabBadges(){
     albumes:albumBooks.length,
     marcos:new Set(ALL.map(c=>c.frame).filter(Boolean)).size,
   };
+
+  // Sketches: async count from IDB
+  _loadSketches().then(sketches=>{
+    const el=document.getElementById('badge-sketches');
+    if(el&&sketches.length) el.textContent=sketches.length;
+  }).catch(()=>{});
 
   // Update sidebar nav badges
   document.querySelectorAll('.sidebar-nav-item[data-tab]').forEach(el=>{
