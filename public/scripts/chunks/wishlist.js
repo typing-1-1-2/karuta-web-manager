@@ -27,6 +27,10 @@ function renderWishlist(){
   const qual = document.getElementById('wlFilterQual')?.value||'';
   const sort = document.getElementById('wlSort')?.value||'date';
 
+  // Always hide empty state initially
+  const empty = document.getElementById('wlEmpty');
+  if(empty) empty.classList.add('hidden');
+
   let list = _wlCards.filter(c=>{
     const mName = c.name?.toLowerCase().includes(q);
     const mSeries = (c.series||'').toLowerCase().includes(q);
@@ -43,7 +47,6 @@ function renderWishlist(){
   list.sort(fns[sort]||fns.date);
 
   const grid  = document.getElementById('wlGrid');
-  const empty = document.getElementById('wlEmpty');
   const count = document.getElementById('wlCount');
 
   if(count) count.textContent = `${list.length} ${t('cards')}`;
@@ -101,17 +104,18 @@ async function _wlApplyImages(list){
     const imgEl = document.getElementById('wli-'+c.id);
     const niEl  = document.getElementById('wlni-'+c.id);
     if(!imgEl) continue;
-    // Try IDB first, then URL field
+    // Try IDB first (base64), then fall back to direct URL (works even with CORS-restricted hosts via <img>)
     let src = null;
-    try{
-      src = await _loadCustomImgAsync(_WL_IDB_PREFIX+c.id);
-    }catch(e){}
+    try{ src = await _loadCustomImgAsync(_WL_IDB_PREFIX+c.id); }catch(e){}
     if(!src && c.imgUrl) src = c.imgUrl;
     if(src){
+      imgEl.onload = ()=>{
+        imgEl.style.display='';
+        imgEl.closest('.card-img-wrap')?.classList.remove('loading');
+        if(niEl) niEl.style.display='none';
+      };
+      imgEl.onerror = ()=>{ imgEl.style.display='none'; };
       imgEl.src = src;
-      imgEl.style.display = '';
-      imgEl.closest('.card-img-wrap')?.classList.remove('loading');
-      if(niEl) niEl.style.display = 'none';
     }
   }
 }
@@ -259,10 +263,97 @@ async function saveWishlistCard(){
 // ── Card detail (open existing) ───────────────────────────────
 
 function openWishlistCard(id){
+  _wlLoad();
   const c = _wlCards.find(x=>x.id===id);
   if(!c) return;
-  // Show a read-only view modal (reuse wl form as viewer)
-  openWishlistForm(id);
+
+  // Build a synthetic card object compatible with showModal
+  const synth = {
+    character: c.name||'—',
+    series:    c.series||'—',
+    quality:   c.quality||'0',
+    edition:   c.edition||'1',
+    number:    c.print||'—',
+    burnValue: c.burnValue||'0',
+    wishlists: c.wishlists||'0',
+    frame:     '',
+    morphed:   'No',
+    trimmed:   'No',
+    tag:       c.tag||'',
+    code:      c.code||'',
+    'worker.effort': '',
+    _wlId:     c.id,   // mark as wishlist card
+    _note:     c.note||'',
+    _imgUrl:   c.imgUrl||'',
+  };
+
+  // Load custom image from IDB then open modal
+  _loadCustomImgAsync(_WL_IDB_PREFIX+c.id).then(idbImg=>{
+    if(idbImg) _modalCustomImg = idbImg;
+    else if(c.imgUrl) _modalCustomImg = c.imgUrl;
+    else _modalCustomImg = null;
+    _modalCard = synth;
+    _modalEd = synth.edition||'1';
+    _modalFrameOn = false;
+    _modalEditMode = false;
+    _modalList = [];
+    _modalIdx = 0;
+    _renderWlModal(c);
+    openModal();
+  });
+}
+
+function _renderWlModal(c){
+  const q = c.quality||'0';
+  const imgUrl = _modalCustomImg || c.imgUrl || '';
+
+  // Card side — image only, no edition buttons
+  document.getElementById('modalCardSide').innerHTML =
+    '<div class="modal-card-viewer">'+
+      '<div class="modal-card-img-wrap" id="mci">'+
+        (imgUrl
+          ? `<div class="modal-card-bg" id="mcbg" style="background-image:url('${esc(imgUrl)}')"></div>`
+          : '<div class="modal-card-bg" id="mcbg" style="background:var(--bg3)"></div>')+
+        '<div class="modal-card-placeholder" id="mcph" style="display:none">♥</div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="modal-action-row" style="margin-top:8px">'+
+      '<button class="modal-action-btn" onclick="openWishlistForm(\''+esc(c.id)+'\')" title="Editar">'+
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'+
+        'Editar'+
+      '</button>'+
+      '<button class="modal-action-btn modal-action-danger" onclick="closeModal();deleteWishlistCard(\''+esc(c.id)+'\')" title="Eliminar">'+
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>'+
+        'Eliminar'+
+      '</button>'+
+    '</div>';
+
+  if(imgUrl){
+    setTimeout(()=>{
+      const bg = document.getElementById('mcbg');
+      if(bg){ const ti=new Image(); ti.onerror=()=>{bg.style.display='none';const ph=document.getElementById('mcph');if(ph)ph.style.display='flex';}; ti.src=imgUrl; }
+    },50);
+  }
+
+  // Info side
+  const _row = (k,v) => `<div class="modal-stat-row"><span class="modal-stat-key">${k}</span><span class="modal-stat-val">${v}</span></div>`;
+  const rows = [
+    _row('Calidad',   QL[q]||q+'★'),
+    c.edition ? _row('Edición', 'Ed.'+c.edition) : '',
+    c.print   ? _row('Print #', c.print) : '',
+    c.burnValue ? _row('Burn value', '🔥 '+(+c.burnValue||0).toLocaleString()) : '',
+    c.wishlists ? _row('Wishlists', c.wishlists) : '',
+    c.tag     ? _row('Tag', c.tag) : '',
+    c.code    ? _row('Código', `<span style="font-family:monospace;font-size:12px">${esc(c.code)}</span>`) : '',
+    c.note    ? _row('Nota', esc(c.note)) : '',
+  ].filter(Boolean).join('');
+
+  document.getElementById('modalInfoSide').innerHTML =
+    `<button class="modal-close" onclick="closeModal()">✕</button>`+
+    `<div style="font-size:11px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">${esc(c.series||'—')}</div>`+
+    `<div class="modal-char-name">${esc(c.name||'—')}</div>`+
+    `<div style="margin-bottom:1.25rem"><span class="card-q-badge ${QB[q]||'bq0'}" style="position:static;display:inline-block">${QL[q]||q+'★'}</span></div>`+
+    `<div class="modal-stats">${rows}</div>`;
 }
 
 // Auto-load image from CDN when name is typed
