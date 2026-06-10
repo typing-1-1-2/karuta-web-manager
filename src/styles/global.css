@@ -1710,6 +1710,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
 .metrics-strip{
   display:flex;border-bottom:1px solid var(--border);
   overflow-x:auto;flex-shrink:0;scrollbar-width:none;
+  padding:10px 16px;gap:10px;
 }
 .metrics-strip::-webkit-scrollbar{display:none}
 .metric{
