@@ -1024,6 +1024,58 @@ function changeCSV(){
   window.location.href = (window.__KWM_BASE__||'') + '/';
 }
 
+async function deleteSelectedCards(source){
+  // Get selected codes from the right source
+  const selectedCodes = source === 'tags'
+    ? new Set([...ALL.filter(c => _tagSelected.has(_tagCardKey(c))).map(c => c.code).filter(Boolean)])
+    : new Set(_charSelSet);
+
+  if(!selectedCodes.size){
+    await dlgAlert(t('selectOneDlg'), {icon:'🃏', title:t('noSelectionDlg')});
+    return;
+  }
+
+  const confirmed = await dlgConfirm(
+    `Se eliminarán <strong>${selectedCodes.size} carta${selectedCodes.size!==1?'s':''}</strong> de tu sesión. No se modificará el CSV original.`,
+    {icon:'🗑', title: t('deleteSelected'), type:'danger', okText: t('deleteSelected'), cancelText: t('cancel')}
+  );
+  if(!confirmed) return;
+
+  // Remove from ALL
+  ALL = ALL.filter(c => !selectedCodes.has(c.code));
+
+  // Persist updated CSV to localStorage
+  try{
+    const headers = Object.keys(ALL[0]||{});
+    if(headers.length){
+      const csvContent = [
+        headers.join(','),
+        ...ALL.map(c => headers.map(h => `"${(c[h]||'').replace(/"/g,'""')}"`).join(','))
+      ].join('\n');
+      localStorage.setItem('karutaCSV', csvContent);
+    }
+  }catch(e){}
+
+  // Clear selection state
+  _charSelSet.clear();
+  _tagSelected.clear();
+
+  // Re-render
+  buildTabBadges();
+  _updateSidebarStats();
+  if(source === 'tags'){
+    if(typeof renderTags === 'function') renderTags();
+  } else {
+    if(typeof renderChars === 'function') renderChars();
+    // Exit selection mode
+    _charSelMode = false;
+    const btn = document.getElementById('charSelectToggle');
+    const bar = document.getElementById('charSelBar');
+    if(btn){ btn.textContent = t('select'); btn.style.borderColor=''; btn.style.color=''; }
+    if(bar) bar.classList.add('hidden');
+  }
+}
+
 async function resetAllData(){
   if(!await dlgConfirm('Se eliminarán <strong>cartas, álbumes, imágenes, sketches y tags</strong>.<br>Solo se conservará el tema elegido.',{icon:'💣',title:'¿Borrar todo?',type:'danger',okText:'Borrar todo',cancelText:'Cancelar'})) return;
   const theme = localStorage.getItem('karutaTheme') || 'dark';
@@ -1694,7 +1746,7 @@ const I18N={
     noCode:'Sin código',noCodeDlg:'Las cartas seleccionadas no tienen código.',
     removeTagConfirm:'Quitar tag',remove:'Quitar',
     // Data
-    exportBackup:'Exportar backup',importBackup:'Importar backup',deleteAll:'Borrar todo',
+    exportBackup:'Exportar backup',importBackup:'Importar backup',deleteAll:'Borrar todo',deleteSelected:'Borrar selección',
     days:'días',
     searchCardsPlaceholder:'Buscar cartas…',gsearchPlaceholder:'Buscar por nombre, serie, código o tag…',gsearchHint:'Escribe para buscar en tu colección',gsearchNoResults:'Sin resultados para',selectCardTitle:'Seleccionar carta',cpSearchPlaceholder:'Buscar por nombre o código…',albumPreview:'Previsualización',download:'⬇ Descargar',downloadX4:'⬇ ×4',downloadOriginal:'⬇ Original',exportSketch:'⬇ Exportar sketch',exportOriginal:'Original (pixel-perfect)',exportUpscaled:'Ampliado ×4',
   },
@@ -1789,7 +1841,7 @@ const I18N={
     noSelectionDlg:'No selection',selectOneDlg:'Select at least one card.',
     noCode:'No code',noCodeDlg:'Selected cards have no code.',
     removeTagConfirm:'Remove tag',remove:'Remove',
-    exportBackup:'Export backup',importBackup:'Import backup',deleteAll:'Delete all',
+    exportBackup:'Export backup',importBackup:'Import backup',deleteAll:'Delete all',deleteSelected:'Delete selection',
     days:'days',
     searchCardsPlaceholder:'Search cards…',gsearchPlaceholder:'Search by name, series, code or tag…',gsearchHint:'Type to search your collection',gsearchNoResults:'No results for',selectCardTitle:'Select card',cpSearchPlaceholder:'Search by name or code…',albumPreview:'Preview',download:'⬇ Download',downloadX4:'⬇ ×4',downloadOriginal:'⬇ Original',exportSketch:'⬇ Export sketch',exportOriginal:'Original (pixel-perfect)',exportUpscaled:'Upscaled ×4',
   },
@@ -1884,7 +1936,7 @@ const I18N={
     noSelectionDlg:'未選択',selectOneDlg:'カードを1枚以上選択してください。',
     noCode:'コードなし',noCodeDlg:'選択したカードにコードがありません。',
     removeTagConfirm:'タグ削除',remove:'削除',
-    exportBackup:'バックアップ書き出し',importBackup:'バックアップ読込',deleteAll:'全削除',
+    exportBackup:'バックアップ書き出し',importBackup:'バックアップ読込',deleteAll:'全削除',deleteSelected:'選択を削除',
     searchCardsPlaceholder:'カードを検索…',gsearchPlaceholder:'名前・シリーズ・コード・タグで検索…',gsearchHint:'コレクションを検索するには入力してください',gsearchNoResults:'結果なし:',selectCardTitle:'カードを選択',cpSearchPlaceholder:'名前またはコードで検索…',albumPreview:'プレビュー',download:'⬇ ダウンロード',downloadX4:'⬇ ×4',downloadOriginal:'⬇ オリジナル',exportSketch:'⬇ スケッチを書き出す',exportOriginal:'オリジナル (ピクセル精確)',exportUpscaled:'拡大 ×4',
     days:'日',
   }

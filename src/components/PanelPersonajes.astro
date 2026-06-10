@@ -65,6 +65,7 @@
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn-ghost" onclick="charSelAll()" style="font-size:12px;padding:5px 10px" data-i18n="selectAll">Seleccionar todas</button>
       <button class="btn-ghost" onclick="charSelClear()" style="font-size:12px;padding:5px 10px" data-i18n="deselect">Deseleccionar</button>
+      <button class="btn-ghost btn-danger-ghost" id="charSelDeleteBtn" onclick="deleteSelectedCards()" style="font-size:12px;padding:5px 10px;border-color:var(--rose);color:var(--rose)" data-i18n="deleteSelected">Borrar selección</button>
       <button class="btn-new-album" id="charSelCopyBtn" onclick="charSelCopy()" style="font-size:12px;padding:5px 14px;gap:6px" data-i18n="copyIDs">Copiar IDs</button>
     </div>
   </div>
