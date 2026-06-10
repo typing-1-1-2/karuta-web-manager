@@ -158,7 +158,11 @@ function _renderSlot(b, bi, pi, si, code){
   const name = c ? c.character : code;
   const q = c ? (c.quality||'0') : '0';
   const imgId = 'asi-'+code.replace(/[^a-z0-9]/gi,'_');
-  if(c){
+  // Check cache synchronously — if custom img is already cached, apply has-custom immediately
+  const cachedCustom = c ? _loadCustomImg(c.code) : null;
+  const hasCustomClass = cachedCustom ? ' has-custom' : '';
+  const displaySrc = cachedCustom || imgUrl;
+  if(c && !cachedCustom){
     _loadCustomImgAsync(c.code).then(custom=>{
       if(!custom) return;
       const el=document.getElementById(imgId);
@@ -168,10 +172,10 @@ function _renderSlot(b, bi, pi, si, code){
       }
     });
   }
-  return `<div class="alb-slot filled" title="${esc(name)}">
+  return `<div class="alb-slot filled${hasCustomClass}" title="${esc(name)}">
     <div class="alb-quality-bar" style="background:${QS[q]}"></div>
-    ${imgUrl?`<div class="alb-slot-loading" id="spin-${imgId}"><div class="kp-spinner kp-spinner-sm"></div></div>
-    <img id="${imgId}" class="alb-slot-img" src="${imgUrl}" alt="${esc(name)}" data-code="${esc(code)}"
+    ${displaySrc?`<div class="alb-slot-loading" id="spin-${imgId}"><div class="kp-spinner kp-spinner-sm"></div></div>
+    <img id="${imgId}" class="alb-slot-img" src="${displaySrc}" alt="${esc(name)}" data-code="${esc(code)}"
       onerror="this.src='';this.style.display='none';document.getElementById('spin-${imgId}')?.remove()"
       onload="this.closest('.alb-slot')?.classList.add('img-loaded');document.getElementById('spin-${imgId}')?.remove()">`:''}
     <div class="alb-slot-overlay-top"></div>
@@ -207,7 +211,22 @@ async function albCreateNew(){
     pages: [{ slots: Array(8).fill(null) }]
   });
   _albSave();
-  renderAlbum();
+  renderAlbum(); // full render needed: new album added
+}
+
+// Surgical update: re-render only one album group without touching others
+function _albUpdateGroup(bi){
+  const b = albumBooks[bi];
+  if(!b) return;
+  const groupEl = document.getElementById('alb-'+b.id);
+  if(!groupEl){ renderAlbum(); return; }
+  const newHtml = _renderAlbumGroup(b, bi);
+  const tmp = document.createElement('div');
+  tmp.innerHTML = newHtml;
+  const newEl = tmp.firstElementChild;
+  groupEl.replaceWith(newEl);
+  wireImgs();
+  _applyCustomImgsToAlbumEl(newEl);
 }
 
 async function albRename(bi){
@@ -218,7 +237,7 @@ async function albRename(bi){
   if(!name) return;
   b.name = name;
   _albSave();
-  renderAlbum();
+  _albUpdateGroup(bi);
 }
 
 async function albDelete(bi){
@@ -235,7 +254,8 @@ function albToggle(id){
   if(!b) return;
   b.open = !b.open;
   _albSave();
-  renderAlbum();
+  const bi = albumBooks.indexOf(b);
+  _albUpdateGroup(bi);
 }
 
 function albSetPage(bi, pi){
@@ -281,7 +301,7 @@ function albAddPage(bi){
   b.pages.push({slots: Array(8).fill(null)});
   b.activePage = b.pages.length-1;
   _albSave();
-  renderAlbum();
+  _albUpdateGroup(bi);
 }
 
 async function albDelPage(bi, pi){
@@ -293,7 +313,7 @@ async function albDelPage(bi, pi){
   b.pages.splice(pi,1);
   b.activePage = Math.min(b.activePage||0, b.pages.length-1);
   _albSave();
-  renderAlbum();
+  _albUpdateGroup(bi);
 }
 
 function albClearSlot(bi, pi, si){
@@ -302,7 +322,7 @@ function albClearSlot(bi, pi, si){
   if(!b) return;
   b.pages[pi].slots[si] = null;
   _albSave();
-  renderAlbum();
+  _albUpdateGroup(bi);
 }
 
 function albPickCard(code){
@@ -314,7 +334,7 @@ function albPickCard(code){
   b.pages[pi].slots[si] = code;
   _albSave();
   closeCardPicker();
-  renderAlbum();
+  _albUpdateGroup(bi);
 }
 
 function openCardPicker(bi, pi, si){
@@ -378,7 +398,7 @@ function albSetBg(bi, bg){
   b.bg=bg; b.bgUrl='';
   _saveAlbumBg(b.id, null);
   _albSave();
-  renderAlbum();
+  _albUpdateGroup(bi);
 }
 
 function albHandleBgDrop(bi, file, text){
@@ -394,7 +414,7 @@ function albClearBgImg(bi){
   _saveAlbumBg(b.id, null);
   b.bgUrl='';
   _albSave();
-  renderAlbum();
+  _albUpdateGroup(bi);
 }
 
 function albSetBgFromUrl(bi, url){
@@ -405,7 +425,7 @@ function albSetBgFromUrl(bi, url){
   // Store URL directly in bgUrl (legacy path — canvas will fetch it)
   b.bgUrl=url;
   _albSave();
-  renderAlbum();
+  _albUpdateGroup(bi);
 }
 
 async function albExport(id){
@@ -650,7 +670,7 @@ function albMovePage(bi, fromPi, toPi){
   else if(fromPi < toPi && b.activePage > fromPi && b.activePage <= toPi) b.activePage--;
   else if(fromPi > toPi && b.activePage >= toPi && b.activePage < fromPi) b.activePage++;
   _albSave();
-  renderAlbum();
+  _albUpdateGroup(bi);
 }
 
 function albPageDragStart(e, bi, pi){
