@@ -1994,6 +1994,7 @@ select.modal-edit-input{cursor:pointer}
 .wl-empty svg{opacity:.3}
 .wl-card{cursor:pointer}
 .wl-form-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem}
+.wl-form-overlay.hidden{display:none!important}
 .wl-form-box{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:700px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 .wl-form-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
 .wl-form-title{font-size:16px;font-weight:600;color:var(--text)}

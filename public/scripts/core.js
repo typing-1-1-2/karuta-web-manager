@@ -438,6 +438,7 @@ function _showDashboard(){
     tags:       ()=>typeof renderTags     ==='function' && renderTags(),
     stats:      ()=>typeof buildCharts    ==='function' && setTimeout(buildCharts, 100),
     sketches:   ()=>typeof renderSketchGallery==='function' && renderSketchGallery(),
+    wishlist:   ()=>typeof renderWishlist==='function' && renderWishlist(),
     home:       ()=>typeof buildHomePanel ==='function' && buildHomePanel(),
   };
   _pageRender[tab]?.();
