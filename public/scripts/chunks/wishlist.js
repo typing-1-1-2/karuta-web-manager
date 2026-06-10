@@ -1,0 +1,281 @@
+// chunk: wishlist.js
+// Favoritos externos — cartas de referencia/inspiración independientes del CSV
+
+const _WL_KEY = 'karutaWishlist';
+const _WL_IDB_PREFIX = 'wl:';
+let _wlCards = [];
+let _wlEditId = null; // null = new, string = editing existing
+let _wlImgData = null; // base64 or URL for current form
+
+// ── Storage ──────────────────────────────────────────────────
+
+function _wlLoad(){
+  try{ _wlCards = JSON.parse(localStorage.getItem(_WL_KEY)||'[]'); }
+  catch(e){ _wlCards = []; }
+}
+
+function _wlSave(){
+  try{ localStorage.setItem(_WL_KEY, JSON.stringify(_wlCards)); }
+  catch(e){}
+}
+
+// ── Render ───────────────────────────────────────────────────
+
+function renderWishlist(){
+  _wlLoad();
+  const q = (document.getElementById('wlSearch')?.value||'').toLowerCase().trim();
+  const qual = document.getElementById('wlFilterQual')?.value||'';
+  const sort = document.getElementById('wlSort')?.value||'date';
+
+  let list = _wlCards.filter(c=>{
+    const mName = c.name?.toLowerCase().includes(q);
+    const mSeries = (c.series||'').toLowerCase().includes(q);
+    if(q && !mName && !mSeries) return false;
+    if(qual && c.quality !== qual) return false;
+    return true;
+  });
+
+  const fns = {
+    date:    (a,b) => b.createdAt - a.createdAt,
+    alpha:   (a,b) => (a.name||'').localeCompare(b.name||''),
+    quality: (a,b) => (+b.quality||0) - (+a.quality||0),
+  };
+  list.sort(fns[sort]||fns.date);
+
+  const grid  = document.getElementById('wlGrid');
+  const empty = document.getElementById('wlEmpty');
+  const count = document.getElementById('wlCount');
+
+  if(count) count.textContent = `${list.length} ${t('cards')}`;
+
+  if(!list.length){
+    if(grid)  grid.innerHTML = '';
+    if(empty) empty.classList.remove('hidden');
+    return;
+  }
+  if(empty) empty.classList.add('hidden');
+  if(grid)  grid.innerHTML = list.map(c => _wlMkCard(c)).join('');
+
+  // Load images async
+  requestAnimationFrame(()=>_wlApplyImages(list));
+}
+
+function _wlMkCard(c){
+  const q = c.quality||'0';
+  const bv = +c.burnValue||0;
+  const wl = +c.wishlists||0;
+  const imgId = 'wli-'+c.id;
+  const pills = [
+    c.tag ? `<span class="pill pill-tag">#${esc(c.tag)}</span>` : '',
+  ].filter(Boolean).join('');
+
+  return `<div class="char-card wl-card" data-wlid="${esc(c.id)}" onclick="openWishlistCard('${esc(c.id)}')">
+    <div class="card-quality-bar" style="background:${QS[q]}"></div>
+    <div class="card-img-wrap loading">
+      <img id="${imgId}" class="card-img" src="" alt="" style="display:none"
+        onload="this.style.display='';this.closest('.card-img-wrap')?.classList.remove('loading')"
+        onerror="this.style.display='none'">
+      <div class="card-no-img" id="wlni-${c.id}" style="display:flex">
+        <span class="ni-icon">♥</span>
+        <span>Sin imagen</span>
+      </div>
+      <span class="card-q-badge ${QB[q]||'bq0'}">${QL[q]||q+'★'}</span>
+    </div>
+    <div class="card-info">
+      <div class="card-name">${esc(c.name||'—')}</div>
+      <div class="card-series">${esc(c.series||'—')}</div>
+      <div class="card-row">
+        ${c.edition ? `<span class="pill pill-ed">Ed.${c.edition}</span>` : ''}
+        ${c.print ? `<span class="pill pill-ed">#${c.print}</span>` : ''}
+        ${pills}
+        ${wl>0 ? `<span class="card-wl">♥${wl}</span>` : ''}
+        ${bv>0 ? `<span class="card-burn"><b>${bv.toLocaleString()}</b>🔥</span>` : ''}
+      </div>
+      ${c.note ? `<div style="font-size:10px;color:var(--text3);margin-top:4px;line-height:1.4">${esc(c.note)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+async function _wlApplyImages(list){
+  for(const c of list){
+    const imgEl = document.getElementById('wli-'+c.id);
+    const niEl  = document.getElementById('wlni-'+c.id);
+    if(!imgEl) continue;
+    // Try IDB first, then URL field
+    let src = null;
+    try{
+      src = await _loadCustomImgAsync(_WL_IDB_PREFIX+c.id);
+    }catch(e){}
+    if(!src && c.imgUrl) src = c.imgUrl;
+    if(src){
+      imgEl.src = src;
+      imgEl.style.display = '';
+      imgEl.closest('.card-img-wrap')?.classList.remove('loading');
+      if(niEl) niEl.style.display = 'none';
+    }
+  }
+}
+
+// ── Form ─────────────────────────────────────────────────────
+
+function openWishlistForm(editId){
+  _wlEditId = editId || null;
+  _wlImgData = null;
+  const overlay = document.getElementById('wlFormOverlay');
+  const title   = document.getElementById('wlFormTitle');
+  if(title) title.textContent = editId ? 'Editar carta' : 'Nueva carta';
+
+  // Clear / prefill fields
+  if(editId){
+    const c = _wlCards.find(x=>x.id===editId);
+    if(!c) return;
+    _wlSetField('wlFName',   c.name||'');
+    _wlSetField('wlFSeries', c.series||'');
+    _wlSetField('wlFQual',   c.quality||'0');
+    _wlSetField('wlFEd',     c.edition||'');
+    _wlSetField('wlFPrint',  c.print||'');
+    _wlSetField('wlFBurn',   c.burnValue||'');
+    _wlSetField('wlFWl',     c.wishlists||'');
+    _wlSetField('wlFTag',    c.tag||'');
+    _wlSetField('wlFCode',   c.code||'');
+    _wlSetField('wlFNote',   c.note||'');
+    _wlSetField('wlImgUrl',  c.imgUrl||'');
+    // Load image preview
+    _loadCustomImgAsync(_WL_IDB_PREFIX+editId).then(img=>{
+      wlSetPreview(img || c.imgUrl || null);
+    });
+  } else {
+    ['wlFName','wlFSeries','wlFPrint','wlFBurn','wlFWl','wlFTag','wlFCode','wlFNote','wlImgUrl'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    _wlSetField('wlFQual','0');
+    _wlSetField('wlFEd','');
+    wlSetPreview(null);
+  }
+  document.getElementById('wlFormError').textContent = '';
+  const delBtn = document.getElementById('wlDeleteBtn');
+  if(delBtn) delBtn.style.display = editId ? 'inline-flex' : 'none';
+  overlay?.classList.remove('hidden');
+  setTimeout(()=>document.getElementById('wlFName')?.focus(), 50);
+}
+
+function closeWishlistForm(){
+  document.getElementById('wlFormOverlay')?.classList.add('hidden');
+  _wlEditId = null;
+  _wlImgData = null;
+}
+
+function _wlSetField(id, val){
+  const el = document.getElementById(id);
+  if(el) el.value = val;
+}
+
+function wlPreviewUrl(url){
+  if(!url) return;
+  wlSetPreview(url);
+  _wlImgData = url;
+}
+
+function wlHandleImgFile(file){
+  if(!file||!file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _wlImgData = e.target.result;
+    wlSetPreview(_wlImgData);
+  };
+  reader.readAsDataURL(file);
+}
+
+function wlSetPreview(src){
+  const prev = document.getElementById('wlImgPreview');
+  if(!prev) return;
+  if(src){
+    prev.innerHTML = `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:8px" onerror="this.style.display='none'">`;
+  } else {
+    prev.innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>Sin imagen</span>`;
+  }
+}
+
+function wlClearImg(){
+  _wlImgData = null;
+  wlSetPreview(null);
+  const urlEl = document.getElementById('wlImgUrl');
+  if(urlEl) urlEl.value = '';
+}
+
+async function saveWishlistCard(){
+  const name = (document.getElementById('wlFName')?.value||'').trim();
+  const errEl = document.getElementById('wlFormError');
+  if(!name){ if(errEl) errEl.textContent = 'El nombre es obligatorio.'; return; }
+  if(errEl) errEl.textContent = '';
+
+  const btn = document.getElementById('wlFormSaveBtn');
+  if(btn){ btn.disabled=true; btn.querySelector('span')? btn.querySelector('span').textContent='Guardando…' : (btn.textContent='Guardando…'); }
+
+  const id = _wlEditId || ('wl'+Date.now());
+  const imgUrl = !_wlImgData?.startsWith('data:') ? (_wlImgData || document.getElementById('wlImgUrl')?.value?.trim() || '') : '';
+
+  // Save image to IDB if it's a file (base64)
+  if(_wlImgData?.startsWith('data:')){
+    try{ await new Promise((res,rej)=>{
+      _openIdb().then(db=>{
+        const tx=db.transaction(_idbStore,'readwrite');
+        tx.objectStore(_idbStore).put(_wlImgData, _WL_IDB_PREFIX+id);
+        tx.oncomplete=res; tx.onerror=rej;
+      }).catch(rej);
+    }); }catch(e){}
+  } else if(_wlEditId && !_wlImgData){
+    // If editing and no new image, keep existing — don't delete
+  }
+
+  const card = {
+    id,
+    name,
+    series:     (document.getElementById('wlFSeries')?.value||'').trim(),
+    quality:    document.getElementById('wlFQual')?.value||'0',
+    edition:    document.getElementById('wlFEd')?.value||'',
+    print:      document.getElementById('wlFPrint')?.value||'',
+    burnValue:  document.getElementById('wlFBurn')?.value||'',
+    wishlists:  document.getElementById('wlFWl')?.value||'',
+    tag:        (document.getElementById('wlFTag')?.value||'').trim(),
+    code:       (document.getElementById('wlFCode')?.value||'').trim(),
+    note:       (document.getElementById('wlFNote')?.value||'').trim(),
+    imgUrl,
+    createdAt:  _wlEditId ? (_wlCards.find(x=>x.id===_wlEditId)?.createdAt||Date.now()) : Date.now(),
+  };
+
+  if(_wlEditId){
+    const idx = _wlCards.findIndex(x=>x.id===_wlEditId);
+    if(idx>=0) _wlCards[idx] = card; else _wlCards.push(card);
+  } else {
+    _wlCards.unshift(card);
+  }
+  _wlSave();
+  closeWishlistForm();
+  renderWishlist();
+  buildTabBadges();
+}
+
+// ── Card detail (open existing) ───────────────────────────────
+
+function openWishlistCard(id){
+  const c = _wlCards.find(x=>x.id===id);
+  if(!c) return;
+  // Reuse the form as a viewer/editor
+  openWishlistForm(id);
+}
+
+async function deleteWishlistCard(id){
+  if(!await dlgConfirm('¿Eliminar esta carta de favoritos externos?',{icon:'🗑',title:'Eliminar carta',type:'danger',okText:'Eliminar',cancelText:'Cancelar'})) return;
+  _wlCards = _wlCards.filter(x=>x.id!==id);
+  _wlSave();
+  // Remove from IDB
+  try{
+    _openIdb().then(db=>{
+      db.transaction(_idbStore,'readwrite').objectStore(_idbStore).delete(_WL_IDB_PREFIX+id);
+    });
+  }catch(e){}
+  closeWishlistForm();
+  renderWishlist();
+  buildTabBadges();
+}
