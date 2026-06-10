@@ -261,9 +261,45 @@ async function saveWishlistCard(){
 function openWishlistCard(id){
   const c = _wlCards.find(x=>x.id===id);
   if(!c) return;
-  // Reuse the form as a viewer/editor
+  // Show a read-only view modal (reuse wl form as viewer)
   openWishlistForm(id);
 }
+
+// Auto-load image from CDN when name is typed
+let _wlAutoImgTimer = null;
+function wlAutoImg(name){
+  clearTimeout(_wlAutoImgTimer);
+  if(!name || name.length < 2) return;
+  // Only auto-load if no image has been manually set
+  if(_wlImgData) return;
+  _wlAutoImgTimer = setTimeout(()=>{
+    const slug = name.toLowerCase().replace(/['\u2019`]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+    const url = CDN + slug + '-1.jpg';
+    // Test if image loads
+    const img = new Image();
+    img.onload = ()=>{
+      // Only apply if user hasn't typed something else meanwhile and no manual image set
+      if(!_wlImgData && document.getElementById('wlFName')?.value === name){
+        wlSetPreview(url);
+        const urlEl = document.getElementById('wlImgUrl');
+        if(urlEl && !urlEl.value) urlEl.value = url;
+      }
+    };
+    img.onerror = ()=>{}; // silently fail
+    img.src = url;
+  }, 500);
+}
+
+// Paste image from clipboard while form is open
+document.addEventListener('paste', e=>{
+  const overlay = document.getElementById('wlFormOverlay');
+  if(!overlay || overlay.classList.contains('hidden')) return;
+  const item = [...e.clipboardData.items].find(i=>i.type.startsWith('image/'));
+  if(item){
+    e.preventDefault();
+    wlHandleImgFile(item.getAsFile());
+  }
+});
 
 async function deleteWishlistCard(id){
   if(!await dlgConfirm('¿Eliminar esta carta de favoritos externos?',{icon:'🗑',title:'Eliminar carta',type:'danger',okText:'Eliminar',cancelText:'Cancelar'})) return;

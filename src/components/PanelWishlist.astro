@@ -41,9 +41,10 @@
     <div class="wl-form-body">
       <!-- Image -->
       <div class="wl-form-img-side">
-        <div class="wl-img-preview" id="wlImgPreview">
+        <div class="wl-img-preview" id="wlImgPreview" title="Pega una imagen con Ctrl+V">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           <span>Sin imagen</span>
+          <span style="font-size:10px;opacity:.6">Ctrl+V para pegar</span>
         </div>
         <div class="wl-img-actions">
           <input type="text" id="wlImgUrl" class="wl-input" placeholder="URL de imagen…" oninput="wlPreviewUrl(this.value)">
@@ -60,7 +61,7 @@
       <div class="wl-form-fields">
         <div class="wl-field-row">
           <label class="wl-label">Nombre *</label>
-          <input id="wlFName" class="wl-input" type="text" placeholder="Nombre del personaje" maxlength="80">
+          <input id="wlFName" class="wl-input" type="text" placeholder="Nombre del personaje" maxlength="80" oninput="wlAutoImg(this.value)">
         </div>
         <div class="wl-field-row">
           <label class="wl-label">Serie</label>
@@ -94,13 +95,13 @@
             <input id="wlFPrint" class="wl-input" type="number" min="0" placeholder="—">
           </div>
           <div>
-            <label class="wl-label">Burn value</label>
+            <label class="wl-label">Burn value <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
             <input id="wlFBurn" class="wl-input" type="number" min="0" placeholder="—">
           </div>
         </div>
         <div class="wl-field-row wl-field-half">
           <div>
-            <label class="wl-label">Wishlists</label>
+            <label class="wl-label">Wishlists <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
             <input id="wlFWl" class="wl-input" type="number" min="0" placeholder="—">
           </div>
           <div>
@@ -113,7 +114,7 @@
           <input id="wlFCode" class="wl-input" type="text" placeholder="Código de Karuta" maxlength="20">
         </div>
         <div class="wl-field-row">
-          <label class="wl-label">Nota personal</label>
+          <label class="wl-label">Nota personal <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
           <textarea id="wlFNote" class="wl-input" rows="2" placeholder="Notas…" maxlength="200" style="resize:vertical"></textarea>
         </div>
       </div>
