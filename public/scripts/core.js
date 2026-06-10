@@ -777,7 +777,7 @@ function _buildModalList(){
 }
 function openCardModal(key){const c=ALL.find(x=>x.code===key||x.character===key);if(c)showModal(c);}
 function showModal(c){
-  _modalCard=c;_modalEd=c.edition||'1';_modalFrameOn=false;_modalCustomImg=null;
+  _modalCard=c;_modalEd=c.edition||'1';_modalFrameOn=false;_modalCustomImg=null;_modalEditMode=false;
   _modalList=_buildModalList();_modalIdx=_modalList.findIndex(x=>x.code===c.code&&x.edition===c.edition);
   if(_modalIdx<0)_modalIdx=0;
   const key=c.code||(c.character+'|'+_modalEd);
@@ -799,6 +799,74 @@ function modalSetEd(n){
   _loadCustomImgAsync(key).then(img=>{_modalCustomImg=img;_renderModal();});
 }
 function modalToggleFrame(){_modalFrameOn=!_modalFrameOn;_renderModal();}
+
+function modalCopyCode(){
+  const code=_modalCard?.code;
+  if(!code) return;
+  navigator.clipboard.writeText(code).catch(()=>{});
+  const lbl=document.getElementById('mcCopyLabel');
+  if(lbl){lbl.textContent='✅ Copiado!';setTimeout(()=>{lbl.textContent='Copiar código';},1500);}
+}
+
+async function modalDeleteCard(){
+  const c=_modalCard; if(!c) return;
+  const ok=await dlgConfirm(
+    `Se eliminará <strong>${esc(c.character)}</strong> de tu sesión.`,
+    {icon:'🗑',title:'Borrar carta',type:'danger',okText:'Borrar',cancelText:'Cancelar'}
+  );
+  if(!ok) return;
+  ALL=ALL.filter(x=>x!==c);
+  try{
+    const h=Object.keys(ALL[0]||{});
+    if(h.length){
+      const csv=[h.join(','),...ALL.map(r=>h.map(k=>`"${(r[k]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
+      localStorage.setItem('karutaCSV',csv);
+    }
+  }catch(e){}
+  buildTabBadges();_updateSidebarStats();
+  // Move to next card or close
+  if(_modalList.length>1){
+    _modalList=_modalList.filter(x=>x!==c);
+    _modalIdx=Math.min(_modalIdx,_modalList.length-1);
+    const next=_modalList[_modalIdx];
+    _modalCard=next;_modalEd=next.edition||'1';_modalFrameOn=false;_modalCustomImg=null;_modalEditMode=false;
+    _loadCustomImgAsync(next.code||(next.character+'|'+_modalEd)).then(img=>{_modalCustomImg=img;_renderModal();_updateSwipeBtns();});
+  } else {
+    closeModal();
+  }
+  if(typeof renderChars==='function') renderChars();
+}
+
+function modalToggleEdit(){
+  _modalEditMode=!_modalEditMode;
+  _renderModal();
+}
+
+function modalSaveEdits(){
+  const c=_modalCard; if(!c) return;
+  const qual=document.getElementById('meQual')?.value;
+  const burn=document.getElementById('meBurn')?.value;
+  const wl=document.getElementById('meWl')?.value;
+  const tag=(document.getElementById('meTag')?.value||'').trim();
+  if(qual!==undefined) c.quality=qual;
+  if(burn!==undefined) c.burnValue=String(+burn||0);
+  if(wl!==undefined) c.wishlists=String(+wl||0);
+  c.tag=tag;
+  // Persist tag override
+  _persistTagChanges();
+  // Persist CSV
+  try{
+    const h=Object.keys(ALL[0]||{});
+    if(h.length){
+      const csv=[h.join(','),...ALL.map(r=>h.map(k=>`"${(r[k]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
+      localStorage.setItem('karutaCSV',csv);
+    }
+  }catch(e){}
+  _modalEditMode=false;
+  _renderModal();
+  if(typeof renderChars==='function') renderChars();
+  buildTabBadges();
+}
 function modalSetCustomImg(){
   const val=(document.getElementById('mcCustomUrl')?.value||'').trim();
   if(!val)return;_modalCustomImg=val;_renderModal();
@@ -883,14 +951,17 @@ function _refreshCardInGrid(character,edition,code){
     }
   });
 }
+let _modalEditMode = false;
+
 function _renderModal(){
   const c=_modalCard,q=c.quality||'0';
   const slug=toSlug(c.character),ed=_modalEd;
   const hasFrame=!!(c.frame&&c.frame.trim());
   const frameOverlay=hasFrame&&_modalFrameOn?frameOverlayUrl(c.frame):null;
   const imgUrl=_modalCustomImg||(CDN+slug+'-'+ed+'.jpg');
-  const imgFb=_modalCustomImg?null:(CDN+slug+'-1.jpg');
   const edBtns=Array.from({length:7},(_,i)=>i+1).map(n=>'<button class="modal-ed-btn'+(String(n)===String(ed)&&!_modalCustomImg?' active':'')+'" onclick="modalSetEd('+n+')">'+ n+'</button>').join('');
+
+  // ── Card side ──
   document.getElementById('modalCardSide').innerHTML=
     '<div class="modal-card-viewer">'+
       '<div class="modal-card-img-wrap" id="mci">'+
@@ -906,14 +977,55 @@ function _renderModal(){
       '<span class="dz-icon">🖼️</span>Arrastra una imagen o pega del portapapeles<small>Click para abrir archivos</small>'+
     '</div>'+
     (_modalCustomImg?'<button onclick="modalClearCustomImg()" style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;text-decoration:underline;margin-top:4px">↩ Restablecer imagen CDN</button>':'')+
-    '<div class="modal-swipe-btns"><button class="modal-swipe-btn" id="msPrev" onclick="modalSwipe(-1)">◀</button><span style="font-size:11px;color:var(--text3);align-self:center" id="msPos"></span><button class="modal-swipe-btn" id="msNext" onclick="modalSwipe(1)">▶</button></div>'+
-    '<a href="'+imgUrl+'" target="_blank" class="btn-ghost" style="font-size:11px;width:100%;justify-content:center;text-decoration:none;margin-top:4px">🔗 Imagen original</a>';
+    '<div class="modal-swipe-btns"><button class="modal-swipe-btn" id="msPrev" onclick="modalSwipe(-1)">◄</button><span style="font-size:11px;color:var(--text3);align-self:center" id="msPos"></span><button class="modal-swipe-btn" id="msNext" onclick="modalSwipe(1)">►</button></div>'+
+    // Bottom action buttons
+    '<div class="modal-action-row">'+
+      '<button class="modal-action-btn" onclick="modalCopyCode()" title="Copiar código">'+
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>'+
+        '<span id="mcCopyLabel">Copiar código</span>'+
+      '</button>'+
+      '<button class="modal-action-btn modal-action-danger" onclick="modalDeleteCard()" title="Borrar carta">'+
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>'+
+        'Borrar carta'+
+      '</button>'+
+      '<button class="modal-action-btn'+(_modalEditMode?' modal-action-active':'')+'" id="mcEditToggle" onclick="modalToggleEdit()" title="Editar campos">'+
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'+
+        (_modalEditMode?'Cancelar':'Editar')+
+      '</button>'+
+      (_modalEditMode?'<button class="modal-action-btn modal-action-save" onclick="modalSaveEdits()" title="Guardar cambios"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Guardar</button>':'')+
+    '</div>';
+
   setTimeout(()=>{
     const bg=document.getElementById('mcbg');
-    if(bg){const t=new Image();t.onerror=()=>{const fb=_modalCustomImg?null:(CDN+slug+'-1.jpg');if(fb&&imgUrl!==fb){bg.style.backgroundImage="url('"+fb+"')";}else{bg.style.display='none';const ph=document.getElementById('mcph');if(ph)ph.style.display='flex';}};t.src=imgUrl;}
+    if(bg){const ti=new Image();ti.onerror=()=>{const fb=_modalCustomImg?null:(CDN+slug+'-1.jpg');if(fb&&imgUrl!==fb){bg.style.backgroundImage="url('"+fb+"')";}else{bg.style.display='none';const ph=document.getElementById('mcph');if(ph)ph.style.display='flex';}};ti.src=imgUrl;}
   },50);
-  const rows=[['Calidad',QL[q]||q+'★'],['Edición','Ed.'+(c.edition||'?')],['Print #',c.number||'—'],['Burn value','🔥 '+(+c.burnValue||0).toLocaleString()],['Wishlists',c.wishlists||'0'],['Marco',c.frame||(c.frame?FRAME_NAME[c.frame]:'')||'(sin marco)'],['Morphed',c.morphed==='Yes'?'✨ Sí':'No'],['Trimmed',c.trimmed==='Yes'?'✂ Sí':'No'],['Tag',c.tag||'—'],['Worker effort',c['worker.effort']||'—'],['Código',c.code||'—']].map(([k,v])=>`<div class="modal-stat-row"><span class="modal-stat-key">${k}</span><span class="modal-stat-val">${esc(String(v))}</span></div>`).join('');
-  document.getElementById('modalInfoSide').innerHTML=`<button class="modal-close" onclick="closeModal()">✕</button><div style="font-size:11px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">${esc(c.series||'—')}</div><div class="modal-char-name">${esc(c.character)}</div><div style="margin-bottom:1.25rem"><span class="card-q-badge ${QB[q]||'bq0'}" style="position:static;display:inline-block">${QL[q]||q+'★'}</span></div><div class="modal-stats">${rows}</div>`;
+
+  // ── Info side ──
+  const _row=(key,valHtml)=>`<div class="modal-stat-row"><span class="modal-stat-key">${key}</span><span class="modal-stat-val">${valHtml}</span></div>`;
+  const _input=(id,val,type='text',extra='')=>`<input id="${id}" class="modal-edit-input" type="${type}" value="${esc(String(val||''))}" ${extra}>`;
+  const _select=(id,opts,cur)=>`<select id="${id}" class="modal-edit-input">${opts.map(([v,l])=>`<option value="${v}"${v===cur?' selected':''}>${l}</option>`).join('')}</select>`;
+
+  const em = _modalEditMode;
+  const rows=[
+    _row('Calidad',     em ? _select('meQual',   [['0','— Sin ★'],['1','★'],['2','★★'],['3','★★★'],['4','★★★★']], q) : (QL[q]||q+'★')),
+    _row('Edición',     'Ed.'+(c.edition||'?')),
+    _row('Print #',     c.number||'—'),
+    _row('Burn value',  em ? `🔥 ${_input('meBurn', +c.burnValue||0, 'number', 'min="0" style="width:80px"')}` : '🔥 '+(+c.burnValue||0).toLocaleString()),
+    _row('Wishlists',   em ? _input('meWl',  c.wishlists||'0', 'number', 'min="0" style="width:80px"') : (c.wishlists||'0')),
+    _row('Marco',       c.frame ? (FRAME_NAME[c.frame]||c.frame) : '(sin marco)'),
+    _row('Morphed',     c.morphed==='Yes'?'✨ Sí':'No'),
+    _row('Trimmed',     c.trimmed==='Yes'?'✂ Sí':'No'),
+    _row('Tag',         em ? _input('meTag', c.tag||'', 'text', 'maxlength="30" style="width:120px"') : (c.tag||'—')),
+    _row('Worker effort', c['worker.effort']||'—'),
+    _row('Código',      `<span style="font-family:monospace;font-size:12px">${esc(c.code||'—')}</span>`),
+  ].join('');
+
+  document.getElementById('modalInfoSide').innerHTML=
+    `<button class="modal-close" onclick="closeModal()">✕</button>`+
+    `<div style="font-size:11px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">${esc(c.series||'—')}</div>`+
+    `<div class="modal-char-name">${esc(c.character)}</div>`+
+    `<div style="margin-bottom:1.25rem"><span class="card-q-badge ${QB[q]||'bq0'}" style="position:static;display:inline-block">${QL[q]||q+'★'}</span></div>`+
+    `<div class="modal-stats">${rows}</div>`;
 }
 function modalSwipe(dir){
   const newIdx=_modalIdx+dir;if(newIdx<0||newIdx>=_modalList.length)return;
