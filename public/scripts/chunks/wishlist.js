@@ -74,11 +74,11 @@ function _wlMkCard(c){
 
   return `<div class="char-card wl-card" data-wlid="${esc(c.id)}" onclick="openWishlistCard('${esc(c.id)}')">
     <div class="card-quality-bar" style="background:${QS[q]}"></div>
-    <div class="card-img-wrap loading">
-      <img id="${imgId}" class="card-img" src="" alt="" style="display:none"
-        onload="this.style.display='';this.closest('.card-img-wrap')?.classList.remove('loading')"
+    <div class="card-img-wrap${c.imgUrl ? '' : ' loading'}">
+      <img id="${imgId}" class="card-img" src="" alt=""
+        onload="this.style.display='';this.closest('.card-img-wrap')?.classList.remove('loading');document.getElementById('wlni-${c.id}').style.display='none'"
         onerror="this.style.display='none'">
-      <div class="card-no-img" id="wlni-${c.id}" style="display:flex">
+      <div class="card-no-img" id="wlni-${c.id}" style="display:${c.imgUrl ? 'none' : 'flex'}">
         <span class="ni-icon">♥</span>
         <span>Sin imagen</span>
       </div>
@@ -260,7 +260,246 @@ async function saveWishlistCard(){
   buildTabBadges();
 }
 
-// ── Card detail (open existing) ───────────────────────────────
+// ── Sub-tab switching ─────────────────────────────────────────────
+
+function wlSwitchTab(tab){
+  document.getElementById('wlViewCards').style.display  = tab==='cards'  ? '' : 'none';
+  document.getElementById('wlViewAlbums').style.display = tab==='albums' ? '' : 'none';
+  document.getElementById('wlTabCards').classList.toggle('active',  tab==='cards');
+  document.getElementById('wlTabAlbums').classList.toggle('active', tab==='albums');
+  if(tab==='albums') wlAlbRender();
+}
+
+// ── Wishlist Albums ──────────────────────────────────────────
+
+const _WL_ALB_KEY = 'karutaWishlistAlbums';
+let _wlAlbums = [];
+let _wlAlbCpTarget = null; // {bi, pi, si}
+
+function _wlAlbLoad(){
+  try{ _wlAlbums = JSON.parse(localStorage.getItem(_WL_ALB_KEY)||'[]'); }catch(e){ _wlAlbums=[]; }
+}
+function _wlAlbSave(){
+  try{ localStorage.setItem(_WL_ALB_KEY, JSON.stringify(_wlAlbums)); }catch(e){}
+}
+
+async function wlAlbCreateNew(){
+  const name = await dlgPrompt('Nombre del álbum','Mi álbum favorito',{icon:'♥',title:'Nuevo álbum',placeholder:'Ej: Top wishlist',okText:'Crear'});
+  if(!name) return;
+  _wlAlbLoad();
+  _wlAlbums.push({
+    id: 'wla'+Date.now(), name, open:true, activePage:0,
+    bg: '#0d0f14',
+    pages:[{slots:Array(8).fill(null)}]
+  });
+  _wlAlbSave();
+  wlAlbRender();
+}
+
+function wlAlbRender(){
+  _wlAlbLoad();
+  _wlLoad();
+  const list = document.getElementById('wlAlbList');
+  if(!list) return;
+  if(!_wlAlbums.length){
+    list.innerHTML = `<div class="wl-empty">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      <p>No hay álbumes aún.</p><p style="font-size:12px;color:var(--text3)">Pulsa <strong>+ Nuevo álbum</strong> para crear uno.</p></div>`;
+    return;
+  }
+  list.innerHTML = '<div class="alb-list-grid">' + _wlAlbums.map((b,bi)=>_wlAlbRenderGroup(b,bi)).join('') + '</div>';
+  requestAnimationFrame(()=>_wlAlbApplyImages());
+}
+
+function _wlAlbRenderGroup(b, bi){
+  const page = b.pages[b.activePage||0] || b.pages[0];
+  const filled = b.pages.reduce((s,p)=>s+p.slots.filter(Boolean).length,0);
+  const total  = b.pages.reduce((s,p)=>s+p.slots.length,0);
+  const pageCount = b.pages.length;
+
+  const slotsHtml = page.slots.map((id,si)=>_wlAlbRenderSlot(b,bi,b.activePage||0,si,id)).join('');
+
+  const pageBtns = b.pages.map((_,pi)=>`
+    <button class="alb-page-btn${pi===(b.activePage||0)?' active':''}" onclick="wlAlbSetPage(${bi},${pi})">
+      Pág.${pi+1} ${b.pages[pi].slots.filter(Boolean).length}/8
+    </button>`).join('');
+
+  return `<div class="alb-group${b.open?' open':''}" id="wla-${b.id}">
+    <div class="alb-group-header" onclick="wlAlbToggle('${b.id}')">
+      <span class="alb-group-icon">♥</span>
+      <span class="alb-group-name">${esc(b.name)}</span>
+      <span class="alb-group-meta">${filled}/${total} cartas · ${pageCount} pág.</span>
+      <div class="alb-group-actions" onclick="event.stopPropagation()">
+        <button class="alb-icon-btn" onclick="wlAlbRename(${bi})" title="Renombrar">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="alb-icon-btn" onclick="wlAlbAddPage(${bi})" title="Añadir página">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="alb-icon-btn del" onclick="wlAlbDelete(${bi})" title="Eliminar">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+        </button>
+      </div>
+    </div>
+    ${b.open ? `
+    <div class="alb-body" style="background:${b.bg||'#0d0f14'}">
+      <div class="alb-slots">${slotsHtml}</div>
+    </div>
+    <div class="alb-footer">
+      <div class="alb-page-btns">${pageBtns}</div>
+      <button class="alb-page-btn" onclick="wlAlbDelPage(${bi},${b.activePage||0})" style="color:var(--rose);border-color:rgba(244,63,94,.3)">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+        Quitar pág.
+      </button>
+    </div>` : ''}
+  </div>`;
+}
+
+function _wlAlbRenderSlot(b, bi, pi, si, id){
+  if(!id) return `<div class="alb-slot" onclick="wlAlbOpenPicker(${bi},${pi},${si})" title="Añadir carta"><span class="alb-slot-empty-icon">＋</span></div>`;
+  const c = _wlCards.find(x=>x.id===id);
+  const name = c ? c.name : id;
+  const q = c ? (c.quality||'0') : '0';
+  const imgId = 'wlas-'+id.replace(/[^a-z0-9]/gi,'_');
+  return `<div class="alb-slot filled" title="${esc(name)}">
+    <div class="alb-quality-bar" style="background:${QS[q]}"></div>
+    <img id="${imgId}" class="alb-slot-img" src="" alt="" data-wlid="${esc(id)}"
+      onload="this.closest('.alb-slot')?.classList.add('img-loaded')"
+      onerror="this.style.display='none'">
+    <div class="alb-slot-overlay-top"></div>
+    <div class="alb-slot-overlay-bot"></div>
+    <div class="alb-slot-top-info"><div class="alb-slot-char">${esc(name)}</div>${c?`<div class="alb-slot-series">${esc(c.series||'')}</div>`:''}</div>
+    <div class="alb-slot-btns">
+      <button class="alb-slot-action swap" onclick="event.stopPropagation();wlAlbOpenPicker(${bi},${pi},${si})" title="Cambiar">⇄</button>
+      <button class="alb-slot-action del" onclick="event.stopPropagation();wlAlbClearSlot(${bi},${pi},${si})" title="Quitar">✕</button>
+    </div>
+  </div>`;
+}
+
+async function _wlAlbApplyImages(){
+  const imgs = document.querySelectorAll('.alb-slot-img[data-wlid]');
+  for(const img of imgs){
+    const id = img.dataset.wlid;
+    const c = _wlCards.find(x=>x.id===id);
+    let src = null;
+    try{ src = await _loadCustomImgAsync(_WL_IDB_PREFIX+id); }catch(e){}
+    if(!src && c?.imgUrl) src = c.imgUrl;
+    if(src){ img.src=src; img.closest('.alb-slot')?.classList.add('img-loaded'); }
+  }
+}
+
+function _wlAlbUpdateGroup(bi){
+  const b = _wlAlbums[bi];
+  if(!b) return;
+  const el = document.getElementById('wla-'+b.id);
+  if(!el){ wlAlbRender(); return; }
+  const tmp = document.createElement('div');
+  tmp.innerHTML = _wlAlbRenderGroup(b,bi);
+  el.replaceWith(tmp.firstElementChild);
+  requestAnimationFrame(()=>_wlAlbApplyImages());
+}
+
+function wlAlbToggle(id){
+  const b=_wlAlbums.find(x=>x.id===id); if(!b) return;
+  b.open=!b.open; _wlAlbSave();
+  _wlAlbUpdateGroup(_wlAlbums.indexOf(b));
+}
+
+function wlAlbSetPage(bi,pi){
+  const b=_wlAlbums[bi]; if(!b) return;
+  b.activePage=pi; _wlAlbSave();
+  _wlAlbUpdateGroup(bi);
+}
+
+async function wlAlbRename(bi){
+  const b=_wlAlbums[bi]; if(!b) return;
+  const name=await dlgPrompt('Nuevo nombre',b.name,{icon:'♥',title:'Renombrar',okText:'Guardar'});
+  if(!name) return;
+  b.name=name; _wlAlbSave();
+  _wlAlbUpdateGroup(bi);
+}
+
+function wlAlbAddPage(bi){
+  const b=_wlAlbums[bi]; if(!b) return;
+  b.pages.push({slots:Array(8).fill(null)});
+  b.activePage=b.pages.length-1;
+  _wlAlbSave(); _wlAlbUpdateGroup(bi);
+}
+
+async function wlAlbDelPage(bi,pi){
+  const b=_wlAlbums[bi]; if(!b||b.pages.length<=1) return;
+  if(!await dlgConfirm('Se eliminará esta página y sus slots.',{icon:'🗑',title:'Quitar página',type:'danger',okText:'Quitar'})) return;
+  b.pages.splice(pi,1);
+  b.activePage=Math.min(b.activePage||0,b.pages.length-1);
+  _wlAlbSave(); _wlAlbUpdateGroup(bi);
+}
+
+async function wlAlbDelete(bi){
+  if(!await dlgConfirm('¿Eliminar este álbum?',{icon:'🗑',title:'Eliminar álbum',type:'danger',okText:'Eliminar'})) return;
+  _wlAlbums.splice(bi,1); _wlAlbSave(); wlAlbRender();
+}
+
+function wlAlbClearSlot(bi,pi,si){
+  const b=_wlAlbums[bi]; if(!b) return;
+  b.pages[pi].slots[si]=null;
+  _wlAlbSave(); _wlAlbUpdateGroup(bi);
+}
+
+// Card picker for wl albums
+function wlAlbOpenPicker(bi,pi,si){
+  _wlAlbCpTarget={bi,pi,si};
+  _wlLoad();
+  const overlay=document.getElementById('wlCardPickerOverlay');
+  if(overlay) overlay.classList.remove('hidden');
+  document.getElementById('wlCpSearch').value='';
+  wlRenderCardPicker('');
+}
+
+function wlCloseCardPicker(){
+  document.getElementById('wlCardPickerOverlay')?.classList.add('hidden');
+  _wlAlbCpTarget=null;
+}
+
+async function wlRenderCardPicker(q){
+  const sq=(q||'').toLowerCase();
+  const list=_wlCards.filter(c=>!sq||c.name?.toLowerCase().includes(sq)||(c.series||'').toLowerCase().includes(sq));
+  const container=document.getElementById('wlCpList');
+  if(!container) return;
+  if(!list.length){ container.innerHTML=`<div class="cp-empty">No hay cartas en favoritos.</div>`; return; }
+  container.innerHTML=list.map(c=>{
+    const q=c.quality||'0';
+    return `<div class="cp-item" onclick="wlAlbPickCard('${esc(c.id)}')">
+      <div class="cp-item-img-wrap"><div class="cp-item-qbar" style="background:${QS[q]}"></div>
+        <img class="cp-item-img" src="" data-wlid="${esc(c.id)}" alt="" onerror="this.style.opacity='.2'">
+      </div>
+      <div class="cp-item-info">
+        <div class="cp-item-name">${esc(c.name||'—')}</div>
+        <div class="cp-item-sub">${esc(c.series||'—')}${c.edition?' · Ed.'+c.edition:''}${c.print?' · #'+c.print:''}</div>
+      </div>
+      <span class="card-q-badge ${QB[q]||'bq0'}" style="position:static;flex-shrink:0">${QL[q]||q+'★'}</span>
+    </div>`;
+  }).join('');
+  // Load images
+  requestAnimationFrame(async ()=>{
+    for(const img of container.querySelectorAll('img[data-wlid]')){
+      const c=_wlCards.find(x=>x.id===img.dataset.wlid);
+      let src=null;
+      try{ src=await _loadCustomImgAsync(_WL_IDB_PREFIX+img.dataset.wlid); }catch(e){}
+      if(!src&&c?.imgUrl) src=c.imgUrl;
+      if(src) img.src=src;
+    }
+  });
+}
+
+function wlAlbPickCard(id){
+  if(!_wlAlbCpTarget) return;
+  const {bi,pi,si}=_wlAlbCpTarget;
+  const b=_wlAlbums[bi]; if(!b) return;
+  b.pages[pi].slots[si]=id;
+  _wlAlbSave();
+  wlCloseCardPicker();
+  _wlAlbUpdateGroup(bi);
+}
 
 function openWishlistCard(id){
   _wlLoad();

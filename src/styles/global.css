@@ -2012,6 +2012,12 @@ select.modal-edit-input{cursor:pointer}
 select.wl-input{cursor:pointer}
 .wl-form-footer{display:flex;align-items:center;gap:10px;padding:14px 20px;border-top:1px solid var(--border)}
 
+/* Wishlist sub-tabs */
+.wl-tabs{display:flex;gap:4px;padding:0 0 12px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.wl-tab{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:8px;border:1px solid transparent;background:none;color:var(--text3);font-size:13px;font-family:inherit;cursor:pointer;transition:all var(--dur-fast)}
+.wl-tab:hover{background:var(--bg3);color:var(--text2)}
+.wl-tab.active{background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.3);color:var(--accent2)}
+
 /* Disable transitions on reduced motion already handled via media query */
 
 /* ══════════════════════════════════════════════════════════
