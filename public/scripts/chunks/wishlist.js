@@ -104,13 +104,13 @@ async function _wlApplyImages(list){
     const imgEl = document.getElementById('wli-'+c.id);
     const niEl  = document.getElementById('wlni-'+c.id);
     if(!imgEl) continue;
-    // Try IDB first (base64), then fall back to direct URL (works even with CORS-restricted hosts via <img>)
     let src = null;
     try{ src = await _loadCustomImgAsync(_WL_IDB_PREFIX+c.id); }catch(e){}
     if(!src && c.imgUrl) src = c.imgUrl;
     if(src){
       imgEl.onload = ()=>{
         imgEl.style.display='';
+        imgEl.classList.add('loaded');
         imgEl.closest('.card-img-wrap')?.classList.remove('loading');
         if(niEl) niEl.style.display='none';
       };
@@ -312,47 +312,73 @@ function wlAlbRender(){
 }
 
 function _wlAlbRenderGroup(b, bi){
-  const page = b.pages[b.activePage||0] || b.pages[0];
+  const ap = b.activePage||0;
+  const page = b.pages[ap] || b.pages[0];
   const filled = b.pages.reduce((s,p)=>s+p.slots.filter(Boolean).length,0);
-  const total  = b.pages.reduce((s,p)=>s+p.slots.length,0);
-  const pageCount = b.pages.length;
+  const total = b.pages.length*8;
 
-  const slotsHtml = page.slots.map((id,si)=>_wlAlbRenderSlot(b,bi,b.activePage||0,si,id)).join('');
+  const pageTabs = b.pages.map((p,pi)=>{
+    const pFilled = p.slots.filter(Boolean).length;
+    const isActive = pi===ap;
+    return `<div class="alb-page-tab-wrap">
+      <button class="alb-page-tab${isActive?' active':''}" onclick="wlAlbSetPage(${bi},${pi})">
+        Pág.${pi+1}<span style="font-size:10px;opacity:.7"> ${pFilled}/8</span>
+      </button>
+      <button class="alb-page-tab del-page" onclick="wlAlbDelPage(${bi},${pi})" title="Eliminar página">✕</button>
+    </div>`;
+  }).join('');
 
-  const pageBtns = b.pages.map((_,pi)=>`
-    <button class="alb-page-btn${pi===(b.activePage||0)?' active':''}" onclick="wlAlbSetPage(${bi},${pi})">
-      Pág.${pi+1} ${b.pages[pi].slots.filter(Boolean).length}/8
-    </button>`).join('');
+  const bgStyle = b.bgUrl
+    ? `background-image:url('${esc(b.bgUrl)}');background-size:cover;background-position:center`
+    : `background:${b.bg||'#0d0f14'}`;
+
+  const slots = page.slots.map((id,si)=>_wlAlbRenderSlot(b,bi,ap,si,id)).join('');
+
+  const swatches = ALB_BG_PRESETS.map(p=>
+    `<div class="alb-bg-swatch${b.bg===p.c&&!b.bgUrl?' active':''}" style="background:${p.c}" title="${p.l}" onclick="_wlAlbSetBg(${bi},'${p.c}')"></div>`
+  ).join('');
 
   return `<div class="alb-group${b.open?' open':''}" id="wla-${b.id}">
     <div class="alb-group-header" onclick="wlAlbToggle('${b.id}')">
-      <span class="alb-group-icon">♥</span>
-      <span class="alb-group-name">${esc(b.name)}</span>
-      <span class="alb-group-meta">${filled}/${total} cartas · ${pageCount} pág.</span>
+      <span style="font-size:18px">♥</span>
+      <span class="alb-group-title">${esc(b.name)}</span>
+      <span class="alb-group-meta">${filled}/${total} cartas · ${b.pages.length} pág. <span class="alb-group-chevron">▼</span></span>
       <div class="alb-group-actions" onclick="event.stopPropagation()">
-        <button class="alb-icon-btn" onclick="wlAlbRename(${bi})" title="Renombrar">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        </button>
-        <button class="alb-icon-btn" onclick="wlAlbAddPage(${bi})" title="Añadir página">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
-        <button class="alb-icon-btn del" onclick="wlAlbDelete(${bi})" title="Eliminar">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
-        </button>
+        <button class="alb-icon-btn" onclick="wlAlbRename(${bi})" title="Renombrar">✏️</button>
+        <button class="alb-icon-btn" onclick="wlAlbAddPage(${bi})" title="Añadir página">+</button>
+        <button class="alb-icon-btn del" onclick="wlAlbDelete(${bi})" title="Eliminar">🗑</button>
       </div>
     </div>
-    ${b.open ? `
-    <div class="alb-body" style="background:${b.bg||'#0d0f14'}">
-      <div class="alb-slots">${slotsHtml}</div>
+    <div class="alb-body">
+      <div class="alb-bg-bar">
+        <span class="alb-bg-label">Fondo:</span>
+        <div class="alb-bg-swatches">${swatches}</div>
+        <input class="alb-bg-url-input" placeholder="o pegar URL…"
+          onkeydown="if(event.key==='Enter')_wlAlbSetBgUrl(${bi},this.value)"
+          onblur="if(this.value.trim())_wlAlbSetBgUrl(${bi},this.value)">
+        ${b.bgUrl?`<button class="alb-bg-clear-btn" onclick="_wlAlbClearBg(${bi})" title="Quitar imagen">✕</button>`:''}
+      </div>
+      <div class="alb-page" style="${bgStyle}" id="wlalbrow-${b.id}-${ap}">${slots}</div>
+      <div class="alb-page-tabs">
+        ${pageTabs}
+        <button class="alb-page-tab add-page" onclick="wlAlbAddPage(${bi}">＋ Nueva página</button>
+      </div>
     </div>
-    <div class="alb-footer">
-      <div class="alb-page-btns">${pageBtns}</div>
-      <button class="alb-page-btn" onclick="wlAlbDelPage(${bi},${b.activePage||0})" style="color:var(--rose);border-color:rgba(244,63,94,.3)">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
-        Quitar pág.
-      </button>
-    </div>` : ''}
   </div>`;
+}
+
+function _wlAlbSetBg(bi, bg){
+  const b=_wlAlbums[bi]; if(!b) return;
+  b.bg=bg; b.bgUrl=''; _wlAlbSave(); _wlAlbUpdateGroup(bi);
+}
+function _wlAlbSetBgUrl(bi, url){
+  url=(url||'').trim(); if(!url) return;
+  const b=_wlAlbums[bi]; if(!b) return;
+  b.bgUrl=url; _wlAlbSave(); _wlAlbUpdateGroup(bi);
+}
+function _wlAlbClearBg(bi){
+  const b=_wlAlbums[bi]; if(!b) return;
+  b.bgUrl=''; _wlAlbSave(); _wlAlbUpdateGroup(bi);
 }
 
 function _wlAlbRenderSlot(b, bi, pi, si, id){
@@ -361,14 +387,21 @@ function _wlAlbRenderSlot(b, bi, pi, si, id){
   const name = c ? c.name : id;
   const q = c ? (c.quality||'0') : '0';
   const imgId = 'wlas-'+id.replace(/[^a-z0-9]/gi,'_');
-  return `<div class="alb-slot filled" title="${esc(name)}">
+  return `<div class="alb-slot filled" title="${esc(name)}" id="wlslot-${imgId}">
     <div class="alb-quality-bar" style="background:${QS[q]}"></div>
-    <img id="${imgId}" class="alb-slot-img" src="" alt="" data-wlid="${esc(id)}"
-      onload="this.closest('.alb-slot')?.classList.add('img-loaded')"
-      onerror="this.style.display='none'">
+    <div class="alb-slot-loading" id="spin-${imgId}"><div class="kp-spinner kp-spinner-sm"></div></div>
+    <img id="${imgId}" class="alb-slot-img" src="" alt="${esc(name)}" data-wlid="${esc(id)}"
+      onerror="this.style.display='none';document.getElementById('spin-${imgId}')?.remove()"
+      onload="this.closest('.alb-slot')?.classList.add('img-loaded');document.getElementById('spin-${imgId}')?.remove()">
     <div class="alb-slot-overlay-top"></div>
     <div class="alb-slot-overlay-bot"></div>
-    <div class="alb-slot-top-info"><div class="alb-slot-char">${esc(name)}</div>${c?`<div class="alb-slot-series">${esc(c.series||'')}</div>`:''}</div>
+    <div class="alb-slot-top-info">
+      <div class="alb-slot-char">${esc(name)}</div>
+      ${c?`<div class="alb-slot-series">${esc(c.series||'')}</div>`:''}
+    </div>
+    <div class="alb-slot-bot-info">
+      ${c?.edition?`<div class="alb-slot-meta">Ed.${c.edition}${c.print?' · #'+c.print:''}</div>`:''}
+    </div>
     <div class="alb-slot-btns">
       <button class="alb-slot-action swap" onclick="event.stopPropagation();wlAlbOpenPicker(${bi},${pi},${si})" title="Cambiar">⇄</button>
       <button class="alb-slot-action del" onclick="event.stopPropagation();wlAlbClearSlot(${bi},${pi},${si})" title="Quitar">✕</button>
@@ -377,14 +410,19 @@ function _wlAlbRenderSlot(b, bi, pi, si, id){
 }
 
 async function _wlAlbApplyImages(){
-  const imgs = document.querySelectorAll('.alb-slot-img[data-wlid]');
+  const imgs = document.querySelectorAll('#wlAlbList .alb-slot-img[data-wlid]');
   for(const img of imgs){
     const id = img.dataset.wlid;
     const c = _wlCards.find(x=>x.id===id);
     let src = null;
     try{ src = await _loadCustomImgAsync(_WL_IDB_PREFIX+id); }catch(e){}
     if(!src && c?.imgUrl) src = c.imgUrl;
-    if(src){ img.src=src; img.closest('.alb-slot')?.classList.add('img-loaded'); }
+    if(src){
+      img.onload = ()=>{ img.closest('.alb-slot')?.classList.add('img-loaded'); document.getElementById('spin-wlas-'+id.replace(/[^a-z0-9]/gi,'_'))?.remove(); };
+      img.src = src;
+    } else {
+      document.getElementById('spin-wlas-'+id.replace(/[^a-z0-9]/gi,'_'))?.remove();
+    }
   }
 }
 
@@ -399,16 +437,35 @@ function _wlAlbUpdateGroup(bi){
   requestAnimationFrame(()=>_wlAlbApplyImages());
 }
 
+function wlAlbSetPage(bi,pi){
+  const b=_wlAlbums[bi]; if(!b) return;
+  b.activePage=pi; _wlAlbSave();
+  // Surgical page swap like main albums
+  const groupEl=document.getElementById('wla-'+b.id);
+  if(!groupEl){ wlAlbRender(); return; }
+  const oldPage=groupEl.querySelector('.alb-page');
+  if(oldPage){
+    oldPage.classList.add('fading');
+    setTimeout(()=>{
+      const page=b.pages[pi]||b.pages[0];
+      const bgStyle = b.bgUrl
+        ? `background-image:url('${esc(b.bgUrl)}');background-size:cover;background-position:center`
+        : `background:${b.bg||'#0d0f14'}`;
+      const slots=page.slots.map((id,si)=>_wlAlbRenderSlot(b,bi,pi,si,id)).join('');
+      const newPageHtml=`<div class="alb-page" style="${bgStyle}" id="wlalbrow-${b.id}-${pi}">${slots}</div>`;
+      oldPage.outerHTML=newPageHtml;
+      requestAnimationFrame(()=>_wlAlbApplyImages());
+    },120);
+  }
+  groupEl.querySelectorAll('.alb-page-tab:not(.del-page):not(.add-page)').forEach((tab,i)=>{
+    tab.classList.toggle('active',i===pi);
+  });
+}
+
 function wlAlbToggle(id){
   const b=_wlAlbums.find(x=>x.id===id); if(!b) return;
   b.open=!b.open; _wlAlbSave();
   _wlAlbUpdateGroup(_wlAlbums.indexOf(b));
-}
-
-function wlAlbSetPage(bi,pi){
-  const b=_wlAlbums[bi]; if(!b) return;
-  b.activePage=pi; _wlAlbSave();
-  _wlAlbUpdateGroup(bi);
 }
 
 async function wlAlbRename(bi){
