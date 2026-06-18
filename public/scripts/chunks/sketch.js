@@ -68,10 +68,18 @@ async function sketchGenerate(){
   sCtx.fillStyle='#fff'; sCtx.fillRect(0,0,W,H);
   sCtx.drawImage(hiC,0,0,W,H);
 
-  if(!isPro && (cleanup==='median'||cleanup==='median+clean')){
+  // ── Pre-quantization cleanup ──────────────────────────────────
+  // Step 1: Median filter to remove noise
+  if(cleanup==='median'||cleanup==='median+clean'||!isPro){
     const medD=sCtx.getImageData(0,0,W,H);
-    _medianFilter(medD.data,W,H);
+    _medianFilter3x3(medD.data,W,H);
     sCtx.putImageData(medD,0,0);
+  }
+  // Step 2: Bilateral-style simplification — key for clean color blocks
+  {
+    const blkD=sCtx.getImageData(0,0,W,H);
+    _simplifyColorBlocks(blkD.data,W,H, isPro?1:2);
+    sCtx.putImageData(blkD,0,0);
   }
   const src=sCtx.getImageData(0,0,W,H).data;
   const N=W*H;
@@ -207,23 +215,60 @@ function _vibranceBoost(data, w, h, factor){
   }
 }
 
-function _medianFilter(data, w, h){
-
+function _medianFilter3x3(data, w, h){
+  // True 3x3 median filter — much better noise removal than 2x2
   const out = new Uint8ClampedArray(data.length);
   for(let y=0;y<h;y++){
     for(let x=0;x<w;x++){
       const i=(y*w+x)*4;
-      const xs=[x,Math.min(x+1,w-1)], ys=[y,Math.min(y+1,h-1)];
       for(let c=0;c<3;c++){
         const vals=[];
-        for(const ny of ys) for(const nx of xs) vals.push(data[(ny*w+nx)*4+c]);
+        for(let ky=-1;ky<=1;ky++) for(let kx=-1;kx<=1;kx++){
+          const nx=Math.min(w-1,Math.max(0,x+kx));
+          const ny=Math.min(h-1,Math.max(0,y+ky));
+          vals.push(data[(ny*w+nx)*4+c]);
+        }
         vals.sort((a,b)=>a-b);
-        out[i+c]=vals[1];
+        out[i+c]=vals[4]; // median of 9
       }
       out[i+3]=255;
     }
   }
   for(let i=0;i<data.length;i++) data[i]=out[i];
+}
+
+function _simplifyColorBlocks(data, w, h, passes){
+  // Iterative block averaging: groups nearby similar pixels into flat color zones
+  // This is the main driver of the clean blocky look in the example
+  for(let pass=0;pass<passes;pass++){
+    const out = new Uint8ClampedArray(data.length);
+    const THRESH = 40; // color similarity threshold
+    for(let y=0;y<h;y++){
+      for(let x=0;x<w;x++){
+        const i=(y*w+x)*4;
+        const r0=data[i],g0=data[i+1],b0=data[i+2];
+        // Skip whites (background)
+        if(r0>245&&g0>245&&b0>245){ out[i]=255;out[i+1]=255;out[i+2]=255;out[i+3]=255; continue; }
+        // Collect similar neighbors in 3x3
+        let sr=0,sg=0,sb=0,n=0;
+        for(let ky=-1;ky<=1;ky++) for(let kx=-1;kx<=1;kx++){
+          const nx=Math.min(w-1,Math.max(0,x+kx));
+          const ny=Math.min(h-1,Math.max(0,y+ky));
+          const ni=(ny*w+nx)*4;
+          const dr=data[ni]-r0,dg=data[ni+1]-g0,db=data[ni+2]-b0;
+          const dist=Math.sqrt(dr*dr+dg*dg+db*db);
+          if(dist<THRESH){ sr+=data[ni];sg+=data[ni+1];sb+=data[ni+2];n++; }
+        }
+        out[i]=sr/n|0; out[i+1]=sg/n|0; out[i+2]=sb/n|0; out[i+3]=255;
+      }
+    }
+    for(let i=0;i<data.length;i++) data[i]=out[i];
+  }
+}
+
+function _medianFilter(data, w, h){
+  // Legacy 2x2 — kept for compatibility
+  _medianFilter3x3(data, w, h);
 }
 
 function _removeIsolatedPixels(compD, W, H){

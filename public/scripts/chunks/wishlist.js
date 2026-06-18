@@ -344,9 +344,15 @@ function _wlAlbRenderGroup(b, bi){
       <span class="alb-group-title">${esc(b.name)}</span>
       <span class="alb-group-meta">${filled}/${total} cartas · ${b.pages.length} pág. <span class="alb-group-chevron">▼</span></span>
       <div class="alb-group-actions" onclick="event.stopPropagation()">
-        <button class="alb-icon-btn" onclick="wlAlbRename(${bi})" title="Renombrar">✏️</button>
-        <button class="alb-icon-btn" onclick="wlAlbAddPage(${bi})" title="Añadir página">+</button>
-        <button class="alb-icon-btn del" onclick="wlAlbDelete(${bi})" title="Eliminar">🗑</button>
+        <button class="alb-icon-btn" onclick="wlAlbRename(${bi})" title="Renombrar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="alb-icon-btn" onclick="wlAlbAddPage(${bi})" title="Añadir página">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="alb-icon-btn del" onclick="wlAlbDelete(${bi})" title="Eliminar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
       </div>
     </div>
     <div class="alb-body">
@@ -361,7 +367,7 @@ function _wlAlbRenderGroup(b, bi){
       <div class="alb-page" style="${bgStyle}" id="wlalbrow-${b.id}-${ap}">${slots}</div>
       <div class="alb-page-tabs">
         ${pageTabs}
-        <button class="alb-page-tab add-page" onclick="wlAlbAddPage(${bi}">＋ Nueva página</button>
+        <button class="alb-page-tab add-page" onclick="wlAlbAddPage(${bi})">+ Nueva página</button>
       </div>
     </div>
   </div>`;
@@ -522,30 +528,31 @@ async function wlRenderCardPicker(q){
   const list=_wlCards.filter(c=>!sq||c.name?.toLowerCase().includes(sq)||(c.series||'').toLowerCase().includes(sq));
   const container=document.getElementById('wlCpList');
   if(!container) return;
-  if(!list.length){ container.innerHTML=`<div class="cp-empty">No hay cartas en favoritos.</div>`; return; }
+  if(!list.length){ container.innerHTML=`<div class="card-picker-empty">No hay cartas en favoritos.</div>`; return; }
+
+  // Pre-load all images first, then render
+  const imgMap={};
+  for(const c of list){
+    let src=null;
+    try{ src=await _loadCustomImgAsync(_WL_IDB_PREFIX+c.id); }catch(e){}
+    if(!src&&c.imgUrl) src=c.imgUrl;
+    if(src) imgMap[c.id]=src;
+  }
+
   container.innerHTML=list.map(c=>{
     const q=c.quality||'0';
-    return `<div class="cp-item" onclick="wlAlbPickCard('${esc(c.id)}')">
-      <div class="cp-item-img-wrap"><div class="cp-item-qbar" style="background:${QS[q]}"></div>
-        <img class="cp-item-img" src="" data-wlid="${esc(c.id)}" alt="" onerror="this.style.opacity='.2'">
+    const src=imgMap[c.id]||'';
+    const isDup=list.filter(x=>x.name===c.name).length>1;
+    const detail=`${QL[q]||q+'\u2605'}${c.edition?' \u00b7 Ed.'+c.edition:''}${c.series?' \u00b7 '+esc(c.series):''}`;
+    return `<div class="card-picker-item" onclick="wlAlbPickCard('${esc(c.id)}')">
+      <img class="card-picker-thumb" src="${esc(src)}" alt="" onerror="this.style.opacity='.3'" style="${src?'':'opacity:.2'}">
+      <div class="card-picker-info">
+        <div class="card-picker-name">${esc(c.name||'\u2014')}</div>
+        <div class="card-picker-detail">${detail}</div>
+        ${isDup&&c.code?`<span class="card-picker-code">${esc(c.code)}</span>`:''}
       </div>
-      <div class="cp-item-info">
-        <div class="cp-item-name">${esc(c.name||'—')}</div>
-        <div class="cp-item-sub">${esc(c.series||'—')}${c.edition?' · Ed.'+c.edition:''}${c.print?' · #'+c.print:''}</div>
-      </div>
-      <span class="card-q-badge ${QB[q]||'bq0'}" style="position:static;flex-shrink:0">${QL[q]||q+'★'}</span>
     </div>`;
   }).join('');
-  // Load images
-  requestAnimationFrame(async ()=>{
-    for(const img of container.querySelectorAll('img[data-wlid]')){
-      const c=_wlCards.find(x=>x.id===img.dataset.wlid);
-      let src=null;
-      try{ src=await _loadCustomImgAsync(_WL_IDB_PREFIX+img.dataset.wlid); }catch(e){}
-      if(!src&&c?.imgUrl) src=c.imgUrl;
-      if(src) img.src=src;
-    }
-  });
 }
 
 function wlAlbPickCard(id){
