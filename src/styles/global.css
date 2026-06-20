@@ -382,6 +382,54 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
   mix-blend-mode:color-dodge;
 }
 
+/* Illustration Rare — subtle foil only on the border, image stays clean */
+.fx-illust .modal-fx-shine{
+  opacity:.3;
+  background:linear-gradient(125deg, transparent 0%, transparent 75%, rgba(255,255,255,.7) 85%, transparent 95%, transparent 100%);
+  background-size:300% 300%;
+  background-position:var(--px) var(--py);
+  mix-blend-mode:overlay;
+  -webkit-mask:linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask-composite:exclude;
+  padding:14px;
+}
+.fx-illust .modal-fx-glare{opacity:.25}
+
+/* Special Illustration Rare — grainy gold-silver border with subtle speckle */
+.fx-sir .modal-fx-shine{
+  opacity:.4;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(255,255,255,.5) 0%, transparent .5%),
+    radial-gradient(circle at 30% 70%, rgba(255,255,255,.4) 0%, transparent .5%),
+    radial-gradient(circle at 60% 40%, rgba(255,255,255,.5) 0%, transparent .5%),
+    radial-gradient(circle at 85% 80%, rgba(255,255,255,.4) 0%, transparent .5%),
+    linear-gradient(135deg, rgba(220,190,255,.3) 0%, rgba(255,225,150,.35) 50%, rgba(190,210,255,.3) 100%);
+  background-size:6% 6%,7% 7%,5% 5%,8% 8%, 280% 280%;
+  background-position:0 0,0 0,0 0,0 0, var(--px) var(--py);
+  mix-blend-mode:soft-light;
+}
+.fx-sir .modal-fx-glare{opacity:.4}
+
+/* Shiny — uniform cold metallic tint, mostly static */
+.fx-shiny .modal-fx-shine{
+  opacity:.35;
+  background:linear-gradient(160deg, rgba(180,210,255,.4) 0%, rgba(220,240,255,.2) 50%, rgba(160,190,255,.4) 100%);
+  background-size:220% 220%;
+  background-position:var(--px) var(--py);
+  mix-blend-mode:color-dodge;
+  filter:saturate(1.2);
+}
+
+/* ACE SPEC — angular black-gold border accent, centered on frame not image */
+.fx-acespec .modal-fx-shine{
+  opacity:.4;
+  background:conic-gradient(from calc(var(--ry)*2) at var(--px) var(--py),
+    rgba(20,20,20,.5), rgba(255,200,80,.5) 25%, rgba(20,20,20,.5) 50%, rgba(255,200,80,.5) 75%, rgba(20,20,20,.5) 100%);
+  mix-blend-mode:overlay;
+}
+.fx-acespec .modal-fx-glare{opacity:.35}
+
 /* ── Static thumbnail FX (no tilt, just the gradient overlay) ── */
 .char-card.fx-holo .card-img-wrap::after,
 .char-card.fx-reverse .card-img-wrap::after,
@@ -389,7 +437,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
 .char-card.fx-vmax .card-img-wrap::after,
 .char-card.fx-rainbow .card-img-wrap::after,
 .char-card.fx-secret .card-img-wrap::after,
-.char-card.fx-gold .card-img-wrap::after{
+.char-card.fx-gold .card-img-wrap::after,
+.char-card.fx-illust .card-img-wrap::after,
+.char-card.fx-sir .card-img-wrap::after,
+.char-card.fx-shiny .card-img-wrap::after,
+.char-card.fx-acespec .card-img-wrap::after{
   content:'';position:absolute;inset:0;pointer-events:none;opacity:.4;
 }
 .char-card.fx-holo .card-img-wrap::after{background:repeating-linear-gradient(115deg,#ff0000,#ff9a00 8%,#d0de21 16%,#4fdc4a 24%,#3fdad8 32%,#1c7fee 48%,#ba0cf8 64%,#ff0000 80%);mix-blend-mode:color-dodge}
@@ -399,6 +451,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
 .char-card.fx-rainbow .card-img-wrap::after{background:repeating-conic-gradient(#ff0000,#ff9a00 14%,#d0de21 28%,#4fdc4a 42%,#3fdad8 57%,#1c7fee 71%,#ba0cf8 85%,#ff0000 100%);mix-blend-mode:color-dodge}
 .char-card.fx-secret .card-img-wrap::after{background:repeating-linear-gradient(100deg,rgba(255,255,255,.5) 0%,transparent 3%,rgba(255,255,255,.5) 6%);mix-blend-mode:overlay}
 .char-card.fx-gold .card-img-wrap::after{background:linear-gradient(120deg,rgba(255,215,120,.2) 0%,rgba(255,245,200,.6) 45%,rgba(255,200,80,.3) 55%,rgba(255,215,120,.2) 100%);mix-blend-mode:color-dodge}
+.char-card.fx-illust .card-img-wrap::after{background:linear-gradient(125deg,transparent 0%,transparent 75%,rgba(255,255,255,.6) 85%,transparent 95%,transparent 100%);mix-blend-mode:overlay;opacity:.3}
+.char-card.fx-sir .card-img-wrap::after{background:linear-gradient(135deg,rgba(220,190,255,.3) 0%,rgba(255,225,150,.35) 50%,rgba(190,210,255,.3) 100%);mix-blend-mode:soft-light}
+.char-card.fx-shiny .card-img-wrap::after{background:linear-gradient(160deg,rgba(180,210,255,.4) 0%,rgba(220,240,255,.2) 50%,rgba(160,190,255,.4) 100%);mix-blend-mode:color-dodge}
+.char-card.fx-acespec .card-img-wrap::after{background:conic-gradient(rgba(20,20,20,.5),rgba(255,200,80,.5) 25%,rgba(20,20,20,.5) 50%,rgba(255,200,80,.5) 75%,rgba(20,20,20,.5) 100%);mix-blend-mode:overlay}
 
 /* Modal edit inputs */
 .modal-edit-input{background:var(--bg2);border:1px solid var(--accent2);border-radius:6px;padding:3px 7px;color:var(--text);font-size:12px;font-family:inherit;transition:border-color var(--dur-fast)}

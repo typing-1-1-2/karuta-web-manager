@@ -821,6 +821,10 @@ const CARD_EFFECTS = [
   { id:'rainbow',  name:'Rainbow Rare',  icon:'🌈' },
   { id:'secret',   name:'Secret Rare',   icon:'💎' },
   { id:'gold',     name:'Gold',          icon:'🥇' },
+  { id:'illust',   name:'Illustration Rare',          icon:'🖼️' },
+  { id:'sir',      name:'Special Illustration Rare',  icon:'🎨' },
+  { id:'shiny',    name:'Shiny',         icon:'💠' },
+  { id:'acespec',  name:'ACE SPEC',      icon:'♠️' },
 ];
 
 function _getCardEffects(){
