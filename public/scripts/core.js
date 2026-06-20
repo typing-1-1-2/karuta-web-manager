@@ -804,6 +804,7 @@ function openModal(){
 function closeModal(){
   const ov=document.getElementById('modalOverlay');ov.classList.add('hidden');
   clearTimeout(ov._hideTimer);ov._hideTimer=setTimeout(()=>{if(ov.classList.contains('hidden'))ov.style.display='none';},220);
+  closeCardZoom();
 }
 function maybeCloseModal(e){if(e.target===document.getElementById('modalOverlay'))closeModal();}
 function modalSetEd(n){
@@ -1028,6 +1029,9 @@ function _renderModal(){
         '<div class="modal-card-placeholder" id="mcph" style="display:none">🎴</div>'+
         '<div class="modal-fx-shine"></div>'+
         '<div class="modal-fx-glare"></div>'+
+        '<button class="modal-zoom-btn" onclick="event.stopPropagation();openCardZoom()" title="Ampliar">'+
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>'+
+        '</button>'+
       '</div>'+
     '</div>'+
     '<div class="modal-ed-btns">'+edBtns+'</div>'+
@@ -1059,7 +1063,6 @@ function _renderModal(){
   setTimeout(()=>{
     const bg=document.getElementById('mcbg');
     if(bg){const ti=new Image();ti.onerror=()=>{const fb=_modalCustomImg?null:(CDN+slug+'-1.jpg');if(fb&&imgUrl!==fb){bg.style.backgroundImage="url('"+fb+"')";}else{bg.style.display='none';const ph=document.getElementById('mcph');if(ph)ph.style.display='flex';}};ti.src=imgUrl;}
-    _initCardTilt();
   },50);
 
   // ── Info side ──
@@ -1104,15 +1107,53 @@ function modalSetEffect(effectId){
   if(typeof renderChars==='function') renderChars();
 }
 
-/* ── 3D TILT (mouse + gyroscope) ── only active inside the modal ── */
-let _tiltActive=false, _tiltRAF=null, _tiltTargetEl=null;
+/* ── 3D TILT (mouse + gyroscope) ── only active inside the zoom view ── */
+let _tiltActive=false, _tiltRAF=null, _tiltTargetEl=null, _tiltZoomMode=false;
 let _tiltRX=0, _tiltRY=0, _tiltPX=50, _tiltPY=50;
+let _gyroHandler=null;
 
-function _initCardTilt(){
-  const viewer=document.getElementById('mcViewer');
+function openCardZoom(){
+  const c=_modalCard; if(!c) return;
+  const currentFx=getCardEffect(c.code);
+  const slug=toSlug(c.character),ed=_modalEd;
+  const imgUrl=_modalCustomImg||(CDN+slug+'-'+ed+'.jpg');
+  const hasFrame=!!(c.frame&&c.frame.trim());
+  const frameOverlay=hasFrame&&_modalFrameOn?frameOverlayUrl(c.frame):null;
+
+  const ov=document.createElement('div');
+  ov.id='cardZoomOverlay';
+  ov.className='card-zoom-overlay';
+  ov.onclick=e=>{ if(e.target===ov) closeCardZoom(); };
+  ov.innerHTML=
+    '<button class="card-zoom-close" onclick="closeCardZoom()">✕</button>'+
+    '<div class="modal-card-viewer fx-'+currentFx+'" id="zoomViewer">'+
+      '<div class="modal-card-img-wrap" id="zoomImgWrap">'+
+        '<div class="modal-card-bg" id="zoomBg" style="background-image:url(\''+imgUrl+'\')"></div>'+
+        (frameOverlay?'<img class="modal-card-frame-canvas" src="'+frameOverlay+'" alt="" onerror="this.style.display=\'none\'">':'')+
+        '<div class="modal-fx-shine"></div>'+
+        '<div class="modal-fx-glare"></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="card-zoom-hint">Mueve el ratón o el dispositivo para rotar</div>';
+  document.body.appendChild(ov);
+  requestAnimationFrame(()=>ov.classList.add('visible'));
+  _initCardTilt('zoomViewer', true);
+}
+
+function closeCardZoom(){
+  const ov=document.getElementById('cardZoomOverlay');
+  if(!ov){ return; }
+  ov.classList.remove('visible');
+  _stopCardTilt();
+  setTimeout(()=>ov.remove(),200);
+}
+
+function _initCardTilt(targetId, zoomMode){
+  const viewer=document.getElementById(targetId||'mcViewer');
   if(!viewer) return;
   _tiltTargetEl=viewer;
-  if(_tiltActive) return; // listeners already wired globally
+  _tiltZoomMode=!!zoomMode;
+  if(_tiltActive) return;
   _tiltActive=true;
 
   const onMove=(clientX, clientY)=>{
@@ -1122,8 +1163,8 @@ function _initCardTilt(){
     const px=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
     const py=Math.max(0,Math.min(1,(clientY-rect.top)/rect.height));
     _tiltPX=px*100; _tiltPY=py*100;
-    _tiltRY=(px-0.5)*22;  // rotateY range
-    _tiltRX=(0.5-py)*22;  // rotateX range
+    _tiltRY=(px-0.5)*22;
+    _tiltRX=(0.5-py)*22;
     _scheduleTiltApply();
   };
   const onLeave=()=>{
@@ -1131,25 +1172,24 @@ function _initCardTilt(){
     _scheduleTiltApply();
   };
 
-  document.addEventListener('mousemove', e=>{
-    if(!document.getElementById('mcViewer')) return;
+  document.addEventListener('mousemove', _tiltMouseHandler=e=>{
+    if(!_tiltTargetEl||!document.body.contains(_tiltTargetEl)) return;
     onMove(e.clientX, e.clientY);
   });
-  document.getElementById('modalCardSide')?.addEventListener('mouseleave', onLeave);
+  _tiltTargetEl.parentElement?.addEventListener('mouseleave', onLeave);
 
-  // Touch support
-  document.addEventListener('touchmove', e=>{
-    if(!document.getElementById('mcViewer')) return;
+  document.addEventListener('touchmove', _tiltTouchHandler=e=>{
+    if(!_tiltTargetEl||!document.body.contains(_tiltTargetEl)) return;
     const t=e.touches[0]; if(!t) return;
     onMove(t.clientX, t.clientY);
   }, {passive:true});
 
-  // Gyroscope (device orientation) — only meaningful on mobile
+  // Gyroscope — only meaningful on mobile, only while zoom is open
   if(window.DeviceOrientationEvent){
-    const handler=e=>{
-      if(!document.getElementById('mcViewer')) return;
-      const beta = e.beta||0;   // front-back tilt -180..180
-      const gamma = e.gamma||0; // left-right tilt -90..90
+    _gyroHandler=e=>{
+      if(!_tiltTargetEl||!document.body.contains(_tiltTargetEl)) return;
+      const beta = e.beta||0;
+      const gamma = e.gamma||0;
       _tiltRX = Math.max(-22, Math.min(22, beta-45));
       _tiltRY = Math.max(-22, Math.min(22, gamma));
       _tiltPX = 50 + (gamma/90)*50;
@@ -1157,29 +1197,41 @@ function _initCardTilt(){
       _scheduleTiltApply();
     };
     if(typeof DeviceOrientationEvent.requestPermission==='function'){
-      // iOS 13+: needs explicit permission, request on first touch inside modal
-      document.getElementById('modalCardSide')?.addEventListener('click', function _reqPerm(){
+      _tiltTargetEl.addEventListener('click', function _reqPerm(){
         DeviceOrientationEvent.requestPermission().then(state=>{
-          if(state==='granted') window.addEventListener('deviceorientation', handler);
+          if(state==='granted') window.addEventListener('deviceorientation', _gyroHandler);
         }).catch(()=>{});
         this.removeEventListener('click', _reqPerm);
       }, {once:true});
     } else {
-      window.addEventListener('deviceorientation', handler);
+      window.addEventListener('deviceorientation', _gyroHandler);
     }
   }
 }
+
+function _stopCardTilt(){
+  _tiltActive=false;
+  _tiltTargetEl=null;
+  _tiltRX=0; _tiltRY=0; _tiltPX=50; _tiltPY=50;
+  if(_tiltMouseHandler) document.removeEventListener('mousemove', _tiltMouseHandler);
+  if(_tiltTouchHandler) document.removeEventListener('touchmove', _tiltTouchHandler);
+  if(_gyroHandler) window.removeEventListener('deviceorientation', _gyroHandler);
+  _tiltMouseHandler=null; _tiltTouchHandler=null; _gyroHandler=null;
+  // Reset the normal modal viewer transform too
+  const v=document.getElementById('mcViewer');
+  if(v){ v.style.setProperty('--rx','0deg'); v.style.setProperty('--ry','0deg'); v.style.setProperty('--px','50%'); v.style.setProperty('--py','50%'); }
+}
+let _tiltMouseHandler=null, _tiltTouchHandler=null;
 
 function _scheduleTiltApply(){
   if(_tiltRAF) return;
   _tiltRAF=requestAnimationFrame(()=>{
     _tiltRAF=null;
-    const viewer=document.getElementById('mcViewer');
-    if(!viewer) return;
-    viewer.style.setProperty('--rx', _tiltRX.toFixed(2)+'deg');
-    viewer.style.setProperty('--ry', _tiltRY.toFixed(2)+'deg');
-    viewer.style.setProperty('--px', _tiltPX.toFixed(1)+'%');
-    viewer.style.setProperty('--py', _tiltPY.toFixed(1)+'%');
+    if(!_tiltTargetEl) return;
+    _tiltTargetEl.style.setProperty('--rx', _tiltRX.toFixed(2)+'deg');
+    _tiltTargetEl.style.setProperty('--ry', _tiltRY.toFixed(2)+'deg');
+    _tiltTargetEl.style.setProperty('--px', _tiltPX.toFixed(1)+'%');
+    _tiltTargetEl.style.setProperty('--py', _tiltPY.toFixed(1)+'%');
   });
 }
 function modalSwipe(dir){
@@ -1197,6 +1249,10 @@ function _updateSwipeBtns(){
   if(pos)pos.textContent=_modalList.length?(_modalIdx+1)+'/'+_modalList.length:'';
 }
 document.addEventListener('keydown',e=>{
+  if(document.getElementById('cardZoomOverlay')){
+    if(e.key==='Escape') closeCardZoom();
+    return;
+  }
   const ov=document.getElementById('modalOverlay');if(!ov||ov.classList.contains('hidden'))return;
   if(e.key==='ArrowRight'||e.key==='ArrowDown')modalSwipe(1);
   else if(e.key==='ArrowLeft'||e.key==='ArrowUp')modalSwipe(-1);
