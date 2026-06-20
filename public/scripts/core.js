@@ -581,7 +581,7 @@ function mkCard(c, onclick=''){
   ].filter(Boolean).join('');
   const safeCode=esc(c.code||c.character);
   const _isSel=_charSelMode&&_charSelSet.has(c.code||c.character);
-  return `<div class="char-card${_charSelMode?' sel-mode':''}${_isSel?' selected':''}" data-code="${safeCode}" onclick="if(!charSelToggleCard('${safeCode}',this)){${onclick||`openCardModal('${safeCode}')`}}">
+  return `<div class="char-card${_charSelMode?' sel-mode':''}${_isSel?' selected':''}${cardEffectClass(c.code)}" data-code="${safeCode}" onclick="if(!charSelToggleCard('${safeCode}',this)){${onclick||`openCardModal('${safeCode}')`}}">
     <div class="card-quality-bar" style="background:${QS[q]}"></div>
     <div class="card-img-wrap loading">
       ${cardImgEl(c.character, c.edition||'1', c.code)}
@@ -811,6 +811,46 @@ function modalSetEd(n){
   const key=_modalCard.code||(_modalCard.character+'|'+String(n));
   _loadCustomImgAsync(key).then(img=>{_modalCustomImg=img;_renderModal();});
 }
+/* ── CARD HOLOGRAPHIC EFFECTS ─────────────────────────────────────── */
+const CARD_EFFECTS = [
+  { id:'none',     name:'Sin efecto',    icon:'○' },
+  { id:'holo',     name:'Holo',          icon:'✨' },
+  { id:'reverse',  name:'Reverse Holo',  icon:'🔄' },
+  { id:'cosmos',   name:'Cosmos',        icon:'🌌' },
+  { id:'vmax',     name:'VMAX',          icon:'⚡' },
+  { id:'rainbow',  name:'Rainbow Rare',  icon:'🌈' },
+  { id:'secret',   name:'Secret Rare',   icon:'💎' },
+  { id:'gold',     name:'Gold',          icon:'🥇' },
+];
+
+function _getCardEffects(){
+  try{ return JSON.parse(localStorage.getItem('karutaCardEffects')||'{}'); }catch(e){ return {}; }
+}
+function _setCardEffects(obj){
+  try{ localStorage.setItem('karutaCardEffects', JSON.stringify(obj)); }catch(e){}
+}
+function getCardEffect(code){
+  if(!code) return 'none';
+  const m=_getCardEffects();
+  return m[code]||'none';
+}
+function setCardEffect(code, effectId){
+  if(!code) return;
+  const m=_getCardEffects();
+  if(effectId==='none') delete m[code];
+  else m[code]=effectId;
+  _setCardEffects(m);
+  // Refresh any visible thumbnails/slots for this card across the app
+  document.querySelectorAll(`[data-code="${CSS.escape(code)}"]`).forEach(el=>{
+    el.classList.remove(...CARD_EFFECTS.map(e=>'fx-'+e.id));
+    if(effectId!=='none') el.classList.add('fx-'+effectId);
+  });
+}
+function cardEffectClass(code){
+  const fx=getCardEffect(code);
+  return fx!=='none' ? ' fx-'+fx : '';
+}
+
 function modalToggleFrame(){_modalFrameOn=!_modalFrameOn;_renderModal();}
 
 function modalCopyCode(){
@@ -973,25 +1013,29 @@ function _renderModal(){
   const frameOverlay=hasFrame&&_modalFrameOn?frameOverlayUrl(c.frame):null;
   const imgUrl=_modalCustomImg||(CDN+slug+'-'+ed+'.jpg');
   const edBtns=Array.from({length:7},(_,i)=>i+1).map(n=>'<button class="modal-ed-btn'+(String(n)===String(ed)&&!_modalCustomImg?' active':'')+'" onclick="modalSetEd('+n+')">'+ n+'</button>').join('');
+  const currentFx = getCardEffect(c.code);
 
   // ── Card side ──
   document.getElementById('modalCardSide').innerHTML=
-    '<div class="modal-card-viewer">'+
+    '<div class="modal-card-viewer fx-'+currentFx+'" id="mcViewer">'+
       '<div class="modal-card-img-wrap" id="mci">'+
         '<div class="modal-card-bg" id="mcbg" style="background-image:url(\''+imgUrl+'\')"></div>'+
         (frameOverlay?'<img class="modal-card-frame-canvas" id="mcframe" src="'+frameOverlay+'" alt="" onerror="this.style.display=\'none\'">':'')+
         '<div class="modal-card-placeholder" id="mcph" style="display:none">🎴</div>'+
+        '<div class="modal-fx-shine"></div>'+
+        '<div class="modal-fx-glare"></div>'+
       '</div>'+
     '</div>'+
     '<div class="modal-ed-btns">'+edBtns+'</div>'+
-    (hasFrame?'<button class="modal-frame-toggle'+(_modalFrameOn?' on':'')+'" onclick="modalToggleFrame()">'+(_modalFrameOn?'🖼 Marco: ON':'🖼 Marco: OFF')+'</button>':'')+
+    '<div class="modal-fx-picker" id="mcFxPicker">'+
+      CARD_EFFECTS.map(fx=>`<button class="modal-fx-chip${fx.id===currentFx?' active':''}" onclick="modalSetEffect('${fx.id}')" title="${esc(fx.name)}"><span>${fx.icon}</span>${esc(fx.name)}</button>`).join('')+
+    '</div>'+
     '<div class="modal-drop-zone" id="mcDropZone" onclick="document.getElementById(&quot;mcFileIn&quot;).click()" ondragover="event.preventDefault();this.classList.add(&quot;drag-over&quot;)" ondragleave="this.classList.remove(&quot;drag-over&quot;)" ondrop="handleModalDrop(event)">'+
       '<input type="file" id="mcFileIn" accept="image/*" style="display:none" onchange="handleModalFile(this.files[0])">'+
       '<span class="dz-icon">🖼️</span>Arrastra una imagen o pega del portapapeles<small>Click para abrir archivos</small>'+
     '</div>'+
     (_modalCustomImg?'<button onclick="modalClearCustomImg()" style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;text-decoration:underline;margin-top:4px">↩ Restablecer imagen CDN</button>':'')+
     '<div class="modal-swipe-btns"><button class="modal-swipe-btn" id="msPrev" onclick="modalSwipe(-1)">◄</button><span style="font-size:11px;color:var(--text3);align-self:center" id="msPos"></span><button class="modal-swipe-btn" id="msNext" onclick="modalSwipe(1)">►</button></div>'+
-    // Bottom action buttons
     '<div class="modal-action-row">'+
       '<button class="modal-action-btn" onclick="modalCopyCode()" title="Copiar código">'+
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>'+
@@ -1011,6 +1055,7 @@ function _renderModal(){
   setTimeout(()=>{
     const bg=document.getElementById('mcbg');
     if(bg){const ti=new Image();ti.onerror=()=>{const fb=_modalCustomImg?null:(CDN+slug+'-1.jpg');if(fb&&imgUrl!==fb){bg.style.backgroundImage="url('"+fb+"')";}else{bg.style.display='none';const ph=document.getElementById('mcph');if(ph)ph.style.display='flex';}};ti.src=imgUrl;}
+    _initCardTilt();
   },50);
 
   // ── Info side ──
@@ -1039,6 +1084,99 @@ function _renderModal(){
     `<div class="modal-char-name">${esc(c.character)}</div>`+
     `<div style="margin-bottom:1.25rem"><span class="card-q-badge ${QB[q]||'bq0'}" style="position:static;display:inline-block">${QL[q]||q+'★'}</span></div>`+
     `<div class="modal-stats">${rows}</div>`;
+}
+
+function modalSetEffect(effectId){
+  const c=_modalCard; if(!c||!c.code) return;
+  setCardEffect(c.code, effectId);
+  const viewer=document.getElementById('mcViewer');
+  if(viewer){
+    viewer.classList.remove(...CARD_EFFECTS.map(e=>'fx-'+e.id));
+    viewer.classList.add('fx-'+effectId);
+  }
+  document.querySelectorAll('#mcFxPicker .modal-fx-chip').forEach(chip=>chip.classList.remove('active'));
+  const btn=[...document.querySelectorAll('#mcFxPicker .modal-fx-chip')].find(b=>b.getAttribute('onclick')?.includes(`'${effectId}'`));
+  if(btn) btn.classList.add('active');
+  if(typeof renderChars==='function') renderChars();
+}
+
+/* ── 3D TILT (mouse + gyroscope) ── only active inside the modal ── */
+let _tiltActive=false, _tiltRAF=null, _tiltTargetEl=null;
+let _tiltRX=0, _tiltRY=0, _tiltPX=50, _tiltPY=50;
+
+function _initCardTilt(){
+  const viewer=document.getElementById('mcViewer');
+  if(!viewer) return;
+  _tiltTargetEl=viewer;
+  if(_tiltActive) return; // listeners already wired globally
+  _tiltActive=true;
+
+  const onMove=(clientX, clientY)=>{
+    if(!_tiltTargetEl) return;
+    const rect=_tiltTargetEl.getBoundingClientRect();
+    if(rect.width===0) return;
+    const px=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
+    const py=Math.max(0,Math.min(1,(clientY-rect.top)/rect.height));
+    _tiltPX=px*100; _tiltPY=py*100;
+    _tiltRY=(px-0.5)*22;  // rotateY range
+    _tiltRX=(0.5-py)*22;  // rotateX range
+    _scheduleTiltApply();
+  };
+  const onLeave=()=>{
+    _tiltRX=0; _tiltRY=0; _tiltPX=50; _tiltPY=50;
+    _scheduleTiltApply();
+  };
+
+  document.addEventListener('mousemove', e=>{
+    if(!document.getElementById('mcViewer')) return;
+    onMove(e.clientX, e.clientY);
+  });
+  document.getElementById('modalCardSide')?.addEventListener('mouseleave', onLeave);
+
+  // Touch support
+  document.addEventListener('touchmove', e=>{
+    if(!document.getElementById('mcViewer')) return;
+    const t=e.touches[0]; if(!t) return;
+    onMove(t.clientX, t.clientY);
+  }, {passive:true});
+
+  // Gyroscope (device orientation) — only meaningful on mobile
+  if(window.DeviceOrientationEvent){
+    const handler=e=>{
+      if(!document.getElementById('mcViewer')) return;
+      const beta = e.beta||0;   // front-back tilt -180..180
+      const gamma = e.gamma||0; // left-right tilt -90..90
+      _tiltRX = Math.max(-22, Math.min(22, beta-45));
+      _tiltRY = Math.max(-22, Math.min(22, gamma));
+      _tiltPX = 50 + (gamma/90)*50;
+      _tiltPY = 50 + ((beta-45)/45)*50;
+      _scheduleTiltApply();
+    };
+    if(typeof DeviceOrientationEvent.requestPermission==='function'){
+      // iOS 13+: needs explicit permission, request on first touch inside modal
+      document.getElementById('modalCardSide')?.addEventListener('click', function _reqPerm(){
+        DeviceOrientationEvent.requestPermission().then(state=>{
+          if(state==='granted') window.addEventListener('deviceorientation', handler);
+        }).catch(()=>{});
+        this.removeEventListener('click', _reqPerm);
+      }, {once:true});
+    } else {
+      window.addEventListener('deviceorientation', handler);
+    }
+  }
+}
+
+function _scheduleTiltApply(){
+  if(_tiltRAF) return;
+  _tiltRAF=requestAnimationFrame(()=>{
+    _tiltRAF=null;
+    const viewer=document.getElementById('mcViewer');
+    if(!viewer) return;
+    viewer.style.setProperty('--rx', _tiltRX.toFixed(2)+'deg');
+    viewer.style.setProperty('--ry', _tiltRY.toFixed(2)+'deg');
+    viewer.style.setProperty('--px', _tiltPX.toFixed(1)+'%');
+    viewer.style.setProperty('--py', _tiltPY.toFixed(1)+'%');
+  });
 }
 function modalSwipe(dir){
   const newIdx=_modalIdx+dir;if(newIdx<0||newIdx>=_modalList.length)return;
