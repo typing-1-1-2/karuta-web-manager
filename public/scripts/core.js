@@ -1016,7 +1016,7 @@ function _renderModal(){
 
   // ── Card side ──
   document.getElementById('modalCardSide').innerHTML=
-    '<div class="modal-card-viewer fx-'+currentFx+'" id="mcViewer">'+
+    '<div class="modal-card-viewer fx-'+currentFx+'" id="mcViewer" style="--cardimg:url(\''+imgUrl+'\')">'+
       '<div class="modal-card-img-wrap" id="mci">'+
         '<div class="modal-card-bg" id="mcbg" style="background-image:url(\''+imgUrl+'\')"></div>'+
         (frameOverlay?'<img class="modal-card-frame-canvas" id="mcframe" src="'+frameOverlay+'" alt="" onerror="this.style.display=\'none\'">':'')+
@@ -1120,7 +1120,7 @@ function openCardZoom(){
   ov.onclick=e=>{ if(e.target===ov) closeCardZoom(); };
   ov.innerHTML=
     '<button class="card-zoom-close" onclick="closeCardZoom()">✕</button>'+
-    '<div class="modal-card-viewer fx-'+currentFx+'" id="zoomViewer">'+
+    '<div class="modal-card-viewer fx-'+currentFx+'" id="zoomViewer" style="--cardimg:url(\''+imgUrl+'\')">'+
       '<div class="modal-card-img-wrap" id="zoomImgWrap">'+
         '<div class="modal-card-bg" id="zoomBg" style="background-image:url(\''+imgUrl+'\')"></div>'+
         (frameOverlay?'<img class="modal-card-frame-canvas" src="'+frameOverlay+'" alt="" onerror="this.style.display=\'none\'">':'')+

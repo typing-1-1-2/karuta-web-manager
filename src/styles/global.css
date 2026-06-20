@@ -333,6 +333,15 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
   position:absolute;inset:0;pointer-events:none;
   opacity:0;transition:opacity .25s;
   border-radius:inherit;
+  /* Clip the holo effect to the card artwork's alpha shape, not the rectangular box */
+  -webkit-mask-image:var(--cardimg);
+  -webkit-mask-size:cover;
+  -webkit-mask-position:center;
+  -webkit-mask-repeat:no-repeat;
+  mask-image:var(--cardimg);
+  mask-size:cover;
+  mask-position:center;
+  mask-repeat:no-repeat;
 }
 .modal-fx-glare{
   background:radial-gradient(circle at var(--px) var(--py), rgba(255,255,255,.65) 0%, rgba(255,255,255,.2) 35%, transparent 65%);
