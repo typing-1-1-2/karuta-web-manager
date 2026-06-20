@@ -19,7 +19,6 @@ function _tabTitle(tab){
     stats:      {es:'Stats',      en:'Stats',        ja:'統計'},
     sketches:   {es:'Sketches',   en:'Sketches',     ja:'スケッチ'},
     rescaler:   {es:'Rescalador', en:'Rescaler',     ja:'リサイズ'},
-    wishlist:   {es:'Favoritos',   en:'Favourites',   ja:'お気に入り'},
   };
   return (map[tab]||{})[_currentLang||'es'] || tab;
 }
@@ -438,7 +437,6 @@ function _showDashboard(){
     tags:       ()=>typeof renderTags     ==='function' && renderTags(),
     stats:      ()=>typeof buildCharts    ==='function' && setTimeout(buildCharts, 100),
     sketches:   ()=>typeof renderSketchGallery==='function' && renderSketchGallery(),
-    wishlist:   ()=>typeof renderWishlist==='function' && renderWishlist(),
     home:       ()=>typeof buildHomePanel ==='function' && buildHomePanel(),
   };
   _pageRender[tab]?.();
@@ -486,9 +484,6 @@ document.getElementById('metricsGrid').innerHTML=mx.map(m=>`
 }
 
 function buildTabBadges(){
-  // Load wishlist count from storage
-  let _wlCount = 0;
-  try{ _wlCount = JSON.parse(localStorage.getItem('karutaWishlist')||'[]').length; }catch(e){}
   const bd={
     characters: ALL.length,
     albums:     albumBooks.length,
@@ -496,7 +491,6 @@ function buildTabBadges(){
     frames:     new Set(ALL.map(c=>c.frame).filter(Boolean)).size,
     workers:    ALL.length,
     tags:       new Set(ALL.map(c=>c.tag||'')).size,
-    wishlist:   _wlCount,
     stats:      '—',
     // Legacy tab bar (if still present)
     personajes:ALL.length,
@@ -2366,6 +2360,27 @@ document.addEventListener('click',e=>{
 })();
 
 if(typeof _migrateToIdb==='function')_migrateToIdb();
+
+// Cleanup: remove deprecated wishlist feature data
+(function _removeWishlistData(){
+  try{
+    localStorage.removeItem('karutaWishlist');
+    localStorage.removeItem('karutaWishlistAlbums');
+  }catch(e){}
+  // Remove wl: prefixed images from IDB
+  _openIdb().then(db=>{
+    try{
+      const tx=db.transaction(_idbStore,'readwrite');
+      const store=tx.objectStore(_idbStore);
+      const req=store.getAllKeys();
+      req.onsuccess=()=>{
+        (req.result||[]).forEach(k=>{
+          if(typeof k==='string' && k.startsWith('wl:')) store.delete(k);
+        });
+      };
+    }catch(e){}
+  }).catch(()=>{});
+})();
 
 
 

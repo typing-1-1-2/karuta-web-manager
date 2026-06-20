@@ -16,7 +16,6 @@ const CHUNK_MAP: Record<string, string> = {
   workers:    `${base}/scripts/chunks/workers.js`,
   tags:       `${base}/scripts/chunks/tags.js`,
   stats:      `${base}/scripts/chunks/stats.js`,
-  wishlist:   `${base}/scripts/chunks/wishlist.js`,
   sketches:   `${base}/scripts/chunks/sketch.js`,
   rescaler:   `${base}/scripts/chunks/rescaler.js`,
 };
@@ -31,7 +30,6 @@ const navItems = [
   { id: 'workers',    icon: '⚙️', label: 'Workers'    },
   { id: 'tags',       icon: '🏷️', label: 'Tags'       },
   { id: 'stats',      icon: '📊', label: 'Stats'      },
-  { id: 'wishlist',   icon: '♥',  label: 'Favoritos'  },
   { id: 'sketches',   icon: '✏️', label: 'Sketches'   },
   { id: 'rescaler',   icon: '🔍', label: 'Rescalador' },
 ];
@@ -39,7 +37,7 @@ const navItems = [
 const routes: Record<string, string> = {
   home: `${base}/`, characters: `${base}/characters`, albums: `${base}/albums`,
   series: `${base}/series`, frames: `${base}/frames`, workers: `${base}/workers`,
-  tags: `${base}/tags`, stats: `${base}/stats`, wishlist: `${base}/wishlist`, sketches: `${base}/sketches`, rescaler: `${base}/rescaler`
+  tags: `${base}/tags`, stats: `${base}/stats`, sketches: `${base}/sketches`, rescaler: `${base}/rescaler`
 };
 
 const pageTitle: Record<string, string> = {
