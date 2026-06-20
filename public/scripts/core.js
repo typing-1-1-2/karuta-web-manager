@@ -575,7 +575,9 @@ function mkCard(c, onclick=''){
   ].filter(Boolean).join('');
   const safeCode=esc(c.code||c.character);
   const _isSel=_charSelMode&&_charSelSet.has(c.code||c.character);
-  return `<div class="char-card${_charSelMode?' sel-mode':''}${_isSel?' selected':''}${cardEffectClass(c.code)}" data-code="${safeCode}" onclick="if(!charSelToggleCard('${safeCode}',this)){${onclick||`openCardModal('${safeCode}')`}}">
+  const _hasTexture=getCardTexture(c.code);
+  const _etchStyle = _hasTexture ? ` style="--etch:url('${_textureDataUri(c.code)}')"` : '';
+  return `<div class="char-card${_charSelMode?' sel-mode':''}${_isSel?' selected':''}${cardEffectClass(c.code)}" data-code="${safeCode}"${_etchStyle} onclick="if(!charSelToggleCard('${safeCode}',this)){${onclick||`openCardModal('${safeCode}')`}}">
     <div class="card-quality-bar" style="background:${QS[q]}"></div>
     <div class="card-img-wrap loading">
       ${cardImgEl(c.character, c.edition||'1', c.code)}
@@ -847,7 +849,65 @@ function setCardEffect(code, effectId){
 }
 function cardEffectClass(code){
   const fx=getCardEffect(code);
-  return fx!=='none' ? ' fx-'+fx : '';
+  const tex=getCardTexture(code);
+  let cls = fx!=='none' ? ' fx-'+fx : '';
+  if(tex) cls += ' fx-texture';
+  return cls;
+}
+
+/* ── Texture toggle (independent of holo type) ──────────────────── */
+function _getCardTextures(){
+  try{ return JSON.parse(localStorage.getItem('karutaCardTextures')||'{}'); }catch(e){ return {}; }
+}
+function _setCardTextures(obj){
+  try{ localStorage.setItem('karutaCardTextures', JSON.stringify(obj)); }catch(e){}
+}
+function getCardTexture(code){
+  if(!code) return false;
+  return !!_getCardTextures()[code];
+}
+function setCardTexture(code, on){
+  if(!code) return;
+  const m=_getCardTextures();
+  if(on) m[code]=true; else delete m[code];
+  _setCardTextures(m);
+  document.querySelectorAll(`[data-code="${CSS.escape(code)}"]`).forEach(el=>{
+    el.classList.toggle('fx-texture', on);
+    if(on) el.style.setProperty('--etch', `url('${_textureDataUri(code)}')`);
+  });
+}
+
+// Deterministic seed from a string (card code) — simple hash to 0..1 range
+function _seedFromCode(code){
+  let h=0;
+  const s=String(code||'x');
+  for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))>>>0; }
+  return h;
+}
+
+// Generates a unique, deterministic SVG turbulence texture (etched-foil pattern) per card code.
+// Returned as a data: URI usable directly in CSS url().
+const _textureCache = new Map();
+function _textureDataUri(code){
+  if(_textureCache.has(code)) return _textureCache.get(code);
+  const h = _seedFromCode(code);
+  const seedX = (h % 1000) / 1000;
+  const seedY = ((h>>>10) % 1000) / 1000;
+  const baseFreq = (0.012 + (h % 50)/5000).toFixed(4); // ~0.012-0.022, varies per card
+  const seed = (h % 9000) + 1;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="420" viewBox="0 0 300 420">
+    <filter id="n">
+      <feTurbulence type="fractalNoise" baseFrequency="${baseFreq} ${(baseFreq*1.6).toFixed(4)}" numOctaves="3" seed="${seed}" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0"/>
+      <feComponentTransfer>
+        <feFuncA type="gamma" amplitude="1" exponent="2.2" offset="0"/>
+      </feComponentTransfer>
+    </filter>
+    <rect width="300" height="420" filter="url(#n)"/>
+  </svg>`;
+  const uri = 'data:image/svg+xml;base64,' + btoa(svg);
+  _textureCache.set(code, uri);
+  return uri;
 }
 
 function modalToggleFrame(){_modalFrameOn=!_modalFrameOn;_renderModal();}
@@ -1016,13 +1076,14 @@ function _renderModal(){
 
   // ── Card side ──
   document.getElementById('modalCardSide').innerHTML=
-    '<div class="modal-card-viewer fx-'+currentFx+'" id="mcViewer" style="--cardimg:url(\''+imgUrl+'\')">'+
+    '<div class="modal-card-viewer fx-'+currentFx+(getCardTexture(c.code)?' fx-texture':'')+'" id="mcViewer" style="--cardimg:url(\''+imgUrl+'\');--etch:url(\''+_textureDataUri(c.code)+'\')">'+
       '<div class="modal-card-img-wrap" id="mci">'+
         '<div class="modal-card-bg" id="mcbg" style="background-image:url(\''+imgUrl+'\')"></div>'+
         (frameOverlay?'<img class="modal-card-frame-canvas" id="mcframe" src="'+frameOverlay+'" alt="" onerror="this.style.display=\'none\'">':'')+
         '<div class="modal-card-placeholder" id="mcph" style="display:none">🎴</div>'+
         '<div class="modal-fx-shine"></div>'+
         '<div class="modal-fx-glare"></div>'+
+        '<div class="modal-fx-etch"></div>'+
         '<button class="modal-zoom-btn" onclick="event.stopPropagation();openCardZoom()" title="Ampliar">'+
           '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>'+
         '</button>'+
@@ -1032,6 +1093,10 @@ function _renderModal(){
     '<div class="modal-fx-picker" id="mcFxPicker">'+
       CARD_EFFECTS.map(fx=>`<button class="modal-fx-chip${fx.id===currentFx?' active':''}" onclick="modalSetEffect('${fx.id}')" title="${esc(fx.name)}"><span>${fx.icon}</span>${esc(fx.name)}</button>`).join('')+
     '</div>'+
+    '<label class="modal-fx-texture-toggle" id="mcTextureToggle">'+
+      '<input type="checkbox" id="mcTextureCheck"'+(getCardTexture(c.code)?' checked':'')+' onchange="modalToggleTexture(this.checked)">'+
+      '<span>🌸 Patrón de textura (grabado único)</span>'+
+    '</label>'+
     '<div class="modal-drop-zone" id="mcDropZone" onclick="document.getElementById(&quot;mcFileIn&quot;).click()" ondragover="event.preventDefault();this.classList.add(&quot;drag-over&quot;)" ondragleave="this.classList.remove(&quot;drag-over&quot;)" ondrop="handleModalDrop(event)">'+
       '<input type="file" id="mcFileIn" accept="image/*" style="display:none" onchange="handleModalFile(this.files[0])">'+
       '<span class="dz-icon">🖼️</span>Arrastra una imagen o pega del portapapeles<small>Click para abrir archivos</small>'+
@@ -1101,6 +1166,17 @@ function modalSetEffect(effectId){
   if(typeof renderChars==='function') renderChars();
 }
 
+function modalToggleTexture(on){
+  const c=_modalCard; if(!c||!c.code) return;
+  setCardTexture(c.code, on);
+  const viewer=document.getElementById('mcViewer');
+  if(viewer){
+    viewer.classList.toggle('fx-texture', on);
+    if(on) viewer.style.setProperty('--etch', `url('${_textureDataUri(c.code)}')`);
+  }
+  if(typeof renderChars==='function') renderChars();
+}
+
 /* ── 3D TILT (mouse + gyroscope) ── only active inside the zoom view ── */
 let _tiltActive=false, _tiltRAF=null, _tiltTargetEl=null, _tiltZoomMode=false;
 let _tiltRX=0, _tiltRY=0, _tiltPX=50, _tiltPY=50;
@@ -1120,12 +1196,13 @@ function openCardZoom(){
   ov.onclick=e=>{ if(e.target===ov) closeCardZoom(); };
   ov.innerHTML=
     '<button class="card-zoom-close" onclick="closeCardZoom()">✕</button>'+
-    '<div class="modal-card-viewer fx-'+currentFx+'" id="zoomViewer" style="--cardimg:url(\''+imgUrl+'\')">'+
+    '<div class="modal-card-viewer fx-'+currentFx+(getCardTexture(c.code)?' fx-texture':'')+'" id="zoomViewer" style="--cardimg:url(\''+imgUrl+'\');--etch:url(\''+_textureDataUri(c.code)+'\')">'+
       '<div class="modal-card-img-wrap" id="zoomImgWrap">'+
         '<div class="modal-card-bg" id="zoomBg" style="background-image:url(\''+imgUrl+'\')"></div>'+
         (frameOverlay?'<img class="modal-card-frame-canvas" src="'+frameOverlay+'" alt="" onerror="this.style.display=\'none\'">':'')+
         '<div class="modal-fx-shine"></div>'+
         '<div class="modal-fx-glare"></div>'+
+        '<div class="modal-fx-etch"></div>'+
       '</div>'+
     '</div>'+
     '<div class="card-zoom-hint">Mueve el ratón o el dispositivo para rotar</div>';
