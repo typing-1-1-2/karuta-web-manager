@@ -172,7 +172,11 @@ function _renderSlot(b, bi, pi, si, code){
       }
     });
   }
-  return `<div class="alb-slot filled${hasCustomClass}" title="${esc(name)}">
+  // Holo / texture effects — same as collection grid cards
+  const fxClass = c ? cardEffectClass(c.code) : '';
+  const hasTexture = c ? getCardTexture(c.code) : false;
+  const etchStyle = hasTexture ? ` style="--etch:url('${_textureDataUri(c.code)}')"` : '';
+  return `<div class="alb-slot filled${hasCustomClass}${fxClass}" title="${esc(name)}" data-code="${esc(code)}"${etchStyle}>
     <div class="alb-quality-bar" style="background:${QS[q]}"></div>
     ${displaySrc?`<div class="alb-slot-loading" id="spin-${imgId}"><div class="kp-spinner kp-spinner-sm"></div></div>
     <img id="${imgId}" class="alb-slot-img" src="${displaySrc}" alt="${esc(name)}" data-code="${esc(code)}"

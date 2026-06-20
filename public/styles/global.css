@@ -542,6 +542,39 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
   background-repeat:no-repeat;
 }
 
+/* Same holo + texture effects on album slots */
+.alb-slot.fx-holo::after,
+.alb-slot.fx-reverse::after,
+.alb-slot.fx-cosmos::after,
+.alb-slot.fx-vmax::after,
+.alb-slot.fx-rainbow::after,
+.alb-slot.fx-secret::after,
+.alb-slot.fx-gold::after,
+.alb-slot.fx-illust::after,
+.alb-slot.fx-sir::after,
+.alb-slot.fx-shiny::after,
+.alb-slot.fx-acespec::after{
+  content:'';position:absolute;inset:0;pointer-events:none;opacity:.4;z-index:2;border-radius:inherit;
+}
+.alb-slot.fx-holo::after{background:repeating-linear-gradient(115deg,#ff0000,#ff9a00 8%,#d0de21 16%,#4fdc4a 24%,#3fdad8 32%,#1c7fee 48%,#ba0cf8 64%,#ff0000 80%);mix-blend-mode:color-dodge}
+.alb-slot.fx-reverse::after{background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.7) 48%,rgba(180,210,255,.5) 52%,transparent 70%);mix-blend-mode:overlay}
+.alb-slot.fx-cosmos::after{background:repeating-conic-gradient(from 0deg,rgba(255,0,150,.3),rgba(0,200,255,.3) 60deg,rgba(150,0,255,.3) 120deg,rgba(255,150,0,.3) 180deg,rgba(0,255,150,.3) 240deg,rgba(255,0,150,.3) 300deg);mix-blend-mode:color-dodge}
+.alb-slot.fx-vmax::after{background:linear-gradient(125deg,rgba(255,80,80,.4) 0%,rgba(255,210,80,.4) 25%,rgba(80,255,180,.4) 50%,rgba(80,150,255,.4) 75%,rgba(220,80,255,.4) 100%);mix-blend-mode:exclusion}
+.alb-slot.fx-rainbow::after{background:repeating-conic-gradient(#ff0000,#ff9a00 14%,#d0de21 28%,#4fdc4a 42%,#3fdad8 57%,#1c7fee 71%,#ba0cf8 85%,#ff0000 100%);mix-blend-mode:color-dodge}
+.alb-slot.fx-secret::after{background:repeating-linear-gradient(100deg,rgba(255,255,255,.5) 0%,transparent 3%,rgba(255,255,255,.5) 6%);mix-blend-mode:overlay}
+.alb-slot.fx-gold::after{background:linear-gradient(120deg,rgba(255,215,120,.2) 0%,rgba(255,245,200,.6) 45%,rgba(255,200,80,.3) 55%,rgba(255,215,120,.2) 100%);mix-blend-mode:color-dodge}
+.alb-slot.fx-illust::after{background:linear-gradient(125deg,transparent 0%,transparent 75%,rgba(255,255,255,.6) 85%,transparent 95%,transparent 100%);mix-blend-mode:overlay;opacity:.3}
+.alb-slot.fx-sir::after{background:linear-gradient(135deg,rgba(220,190,255,.3) 0%,rgba(255,225,150,.35) 50%,rgba(190,210,255,.3) 100%);mix-blend-mode:soft-light}
+.alb-slot.fx-shiny::after{background:linear-gradient(160deg,rgba(180,210,255,.4) 0%,rgba(220,240,255,.2) 50%,rgba(160,190,255,.4) 100%);mix-blend-mode:color-dodge}
+.alb-slot.fx-acespec::after{background:conic-gradient(rgba(20,20,20,.5),rgba(255,200,80,.5) 25%,rgba(20,20,20,.5) 50%,rgba(255,200,80,.5) 75%,rgba(20,20,20,.5) 100%);mix-blend-mode:overlay}
+.alb-slot.fx-texture::before{
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:2;
+  opacity:.12;mix-blend-mode:soft-light;
+  background-image:var(--etch);
+  background-size:100% 100%;
+  background-repeat:no-repeat;
+}
+
 /* Modal edit inputs */
 .modal-edit-input{background:var(--bg2);border:1px solid var(--accent2);border-radius:6px;padding:3px 7px;color:var(--text);font-size:12px;font-family:inherit;transition:border-color var(--dur-fast)}
 .modal-edit-input:focus{outline:none;border-color:var(--accent2);box-shadow:0 0 0 2px rgba(99,102,241,.15)}
