@@ -175,7 +175,15 @@ function _renderSlot(b, bi, pi, si, code){
   // Holo / texture effects — same as collection grid cards
   const fxClass = c ? cardEffectClass(c.code) : '';
   const hasTexture = c ? getCardTexture(c.code) : false;
-  const etchStyle = hasTexture ? ` style="--etch:url('${_textureDataUri(c.code)}')"` : '';
+  const cachedEtch = hasTexture && c ? _textureDataUri(c.code) : null;
+  const etchStyle = cachedEtch ? ` style="--etch:url('${cachedEtch}')"` : '';
+  if(hasTexture && !cachedEtch && c && c.code){
+    _generateTextureForCard(c.code, imgUrl).then(uri=>{
+      document.querySelectorAll(`[data-code="${CSS.escape(c.code)}"].fx-texture`).forEach(el=>{
+        el.style.setProperty('--etch', `url('${uri}')`);
+      });
+    });
+  }
   return `<div class="alb-slot filled${hasCustomClass}${fxClass}" title="${esc(name)}" data-code="${esc(code)}"${etchStyle}>
     <div class="alb-quality-bar" style="background:${QS[q]}"></div>
     ${displaySrc?`<div class="alb-slot-loading" id="spin-${imgId}"><div class="kp-spinner kp-spinner-sm"></div></div>

@@ -576,7 +576,16 @@ function mkCard(c, onclick=''){
   const safeCode=esc(c.code||c.character);
   const _isSel=_charSelMode&&_charSelSet.has(c.code||c.character);
   const _hasTexture=getCardTexture(c.code);
-  const _etchStyle = _hasTexture ? ` style="--etch:url('${_textureDataUri(c.code)}')"` : '';
+  const _cachedEtch = _hasTexture ? _textureDataUri(c.code) : null;
+  const _etchStyle = _cachedEtch ? ` style="--etch:url('${_cachedEtch}')"` : '';
+  if(_hasTexture && !_cachedEtch && c.code){
+    const _imgUrl = CDN+toSlug(c.character)+'-'+(c.edition||'1')+'.jpg';
+    _generateTextureForCard(c.code, _imgUrl).then(uri=>{
+      document.querySelectorAll(`[data-code="${CSS.escape(c.code)}"].fx-texture`).forEach(el=>{
+        el.style.setProperty('--etch', `url('${uri}')`);
+      });
+    });
+  }
   return `<div class="char-card${_charSelMode?' sel-mode':''}${_isSel?' selected':''}${cardEffectClass(c.code)}" data-code="${safeCode}"${_etchStyle} onclick="if(!charSelToggleCard('${safeCode}',this)){${onclick||`openCardModal('${safeCode}')`}}">
     <div class="card-quality-bar" style="background:${QS[q]}"></div>
     <div class="card-img-wrap loading">
@@ -873,7 +882,10 @@ function setCardTexture(code, on){
   _setCardTextures(m);
   document.querySelectorAll(`[data-code="${CSS.escape(code)}"]`).forEach(el=>{
     el.classList.toggle('fx-texture', on);
-    if(on) el.style.setProperty('--etch', `url('${_textureDataUri(code)}')`);
+    if(on){
+      const cached=_textureDataUri(code);
+      if(cached) el.style.setProperty('--etch', `url('${cached}')`);
+    }
   });
 }
 
@@ -889,13 +901,135 @@ function _seedFromCode(code){
 // Mimics the directional etched-foil look (fine repeating lines that follow flow fields),
 // rather than blotchy fractal noise. Returned as a data: URI usable directly in CSS url().
 const _textureCache = new Map();
+const _textureGenerating = new Map(); // code -> Promise, avoid duplicate generation
+
+// Synchronous getter — returns cached data URI or null if not ready yet
 function _textureDataUri(code){
+  return _textureCache.get(code) || null;
+}
+
+// Async generator — analyzes the REAL card image with flow-field hatching
+// (lines follow the image's contours/gradients, density follows luminosity)
+// instead of a generic repeating pattern. Caches result per code.
+async function _generateTextureForCard(code, imgUrl){
   if(_textureCache.has(code)) return _textureCache.get(code);
+  if(_textureGenerating.has(code)) return _textureGenerating.get(code);
+
+  const promise = (async()=>{
+    try{
+      const img = await new Promise((res,rej)=>{
+        const im=new Image();
+        im.crossOrigin='anonymous';
+        im.onload=()=>res(im);
+        im.onerror=rej;
+        im.src=imgUrl;
+      });
+
+      // Work at a modest internal resolution for speed, output scaled to card ratio
+      const W=220, H=Math.round(W*1.478); // higher analysis res for finer contour following
+      const srcC=document.createElement('canvas');
+      srcC.width=W; srcC.height=H;
+      const srcCtx=srcC.getContext('2d',{willReadFrequently:true});
+      srcCtx.drawImage(img,0,0,W,H);
+      const data=srcCtx.getImageData(0,0,W,H).data;
+
+      // Luminosity grid
+      const lum=new Float32Array(W*H);
+      for(let i=0;i<W*H;i++){
+        const r=data[i*4],g=data[i*4+1],b=data[i*4+2];
+        lum[i]=(0.299*r+0.587*g+0.114*b)/255;
+      }
+
+      // Sobel gradient (for flow direction — lines run perpendicular to gradient, i.e. along edges)
+      const gx=new Float32Array(W*H), gy=new Float32Array(W*H);
+      for(let y=1;y<H-1;y++){
+        for(let x=1;x<W-1;x++){
+          const i=y*W+x;
+          gx[i]= lum[i-1-W]-lum[i+1-W] + 2*(lum[i-1]-lum[i+1]) + lum[i-1+W]-lum[i+1+W];
+          gy[i]= lum[i-W-1]-lum[i+W-1] + 2*(lum[i-W]-lum[i+W]) + lum[i-W+1]-lum[i+W+1];
+        }
+      }
+
+      // Deterministic seed for streamline start jitter
+      const h=_seedFromCode(code);
+      let rngState=h>>>0;
+      const rng=()=>{ rngState^=rngState<<13; rngState^=rngState>>>17; rngState^=rngState<<5; rngState>>>=0; return (rngState%10000)/10000; };
+
+      // Build SVG path strings for streamlines
+      const STEP=1.1, MAXLEN=46, MINLEN=4;
+      const cell=2.1; // grid spacing between streamline seeds — denser = more lines
+      let pathsD='';
+      let lineCount=0;
+      const maxLines=5200; // perf cap, raised for richer detail
+
+      for(let sy=cell/2; sy<H && lineCount<maxLines; sy+=cell){
+        for(let sx=cell/2; sx<W && lineCount<maxLines; sx+=cell){
+          const ix=Math.floor(sx), iy=Math.floor(sy);
+          const idx=iy*W+ix;
+          const L=lum[idx];
+          // Skip near-white (background/highlights) — fewer lines there
+          if(L>0.88) continue;
+          // Probability of drawing a line scales with darkness (denser hatching in shadows)
+          const density = 1-L; // 0 (white) .. 1 (black)
+          if(rng() > Math.min(1, density*1.6+0.1)) continue;
+
+          const jx = sx + (rng()-0.5)*cell*0.8;
+          const jy = sy + (rng()-0.5)*cell*0.8;
+
+          // Trace a short streamline following the edge direction (perpendicular to gradient)
+          let px=jx, py=jy;
+          let pts=[[px,py]];
+          const lenScale = 0.5+density*1.1; // darker = noticeably longer strokes
+          for(let step=0; step<MAXLEN*lenScale; step++){
+            const cx=Math.max(0,Math.min(W-1,Math.round(px)));
+            const cy=Math.max(0,Math.min(H-1,Math.round(py)));
+            const gi=cy*W+cx;
+            let dx=-gy[gi], dy=gx[gi]; // perpendicular to gradient = along the edge/contour
+            const mag=Math.sqrt(dx*dx+dy*dy);
+            if(mag<0.0001){
+              // flat area — fall back to a fixed diagonal direction (deterministic per card)
+              const ang=(h%360)*Math.PI/180;
+              dx=Math.cos(ang); dy=Math.sin(ang);
+            } else { dx/=mag; dy/=mag; }
+            px+=dx*STEP; py+=dy*STEP;
+            if(px<0||px>=W||py<0||py>=H) break;
+            pts.push([px,py]);
+          }
+          if(pts.length<MINLEN) continue;
+          lineCount++;
+          let d='M'+pts[0][0].toFixed(1)+','+pts[0][1].toFixed(1);
+          for(let p=1;p<pts.length;p++) d+='L'+pts[p][0].toFixed(1)+','+pts[p][1].toFixed(1);
+          pathsD += `<path d="${d}"/>`;
+        }
+      }
+
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+        <g fill="none" stroke="#fff" stroke-width="0.55" stroke-opacity="0.65" stroke-linecap="round">${pathsD}</g>
+      </svg>`;
+      const uri = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+      _textureCache.set(code, uri);
+      return uri;
+    }catch(e){
+      // Fallback: simple generic crosshatch if image fails to load (CORS etc.)
+      const uri = _fallbackTextureDataUri(code);
+      _textureCache.set(code, uri);
+      return uri;
+    }
+  })();
+
+  _textureGenerating.set(code, promise);
+  const result = await promise;
+  _textureGenerating.delete(code);
+  return result;
+}
+
+// Generic crosshatch fallback (used if the real image can't be analyzed)
+function _fallbackTextureDataUri(code){
   const h = _seedFromCode(code);
   const seed = (h % 9000) + 1;
   const seed2 = ((h>>>7) % 9000) + 1;
   const angle1 = (h % 180);
-  const angle2 = angle1 + 35 + (h % 40); // crosshatch: second layer at a different angle
+  const angle2 = angle1 + 35 + (h % 40);
   const spacing1 = 5.5 + (h % 20)/8;
   const spacing2 = 7 + ((h>>>4) % 16)/6;
   const lineW1 = (spacing1*0.18).toFixed(2);
@@ -922,9 +1056,7 @@ function _textureDataUri(code){
     <rect width="${W}" height="${H}" fill="url(#lines1)" filter="url(#warp)"/>
     <rect width="${W}" height="${H}" fill="url(#lines2)" filter="url(#warp2)"/>
   </svg>`;
-  const uri = 'data:image/svg+xml;base64,' + btoa(svg);
-  _textureCache.set(code, uri);
-  return uri;
+  return 'data:image/svg+xml;base64,' + btoa(svg);
 }
 
 function modalToggleFrame(){_modalFrameOn=!_modalFrameOn;_renderModal();}
@@ -1093,7 +1225,7 @@ function _renderModal(){
 
   // ── Card side ──
   document.getElementById('modalCardSide').innerHTML=
-    '<div class="modal-card-viewer fx-'+currentFx+(getCardTexture(c.code)?' fx-texture':'')+'" id="mcViewer" style="--cardimg:url(\''+imgUrl+'\');--etch:url(\''+_textureDataUri(c.code)+'\')">'+
+    '<div class="modal-card-viewer fx-'+currentFx+(getCardTexture(c.code)?' fx-texture':'')+'" id="mcViewer" style="--cardimg:url(\''+imgUrl+'\')">'+
       '<div class="modal-card-img-wrap" id="mci">'+
         '<div class="modal-card-bg" id="mcbg" style="background-image:url(\''+imgUrl+'\')"></div>'+
         (frameOverlay?'<img class="modal-card-frame-canvas" id="mcframe" src="'+frameOverlay+'" alt="" onerror="this.style.display=\'none\'">':'')+
@@ -1140,6 +1272,16 @@ function _renderModal(){
     const bg=document.getElementById('mcbg');
     if(bg){const ti=new Image();ti.onerror=()=>{const fb=_modalCustomImg?null:(CDN+slug+'-1.jpg');if(fb&&imgUrl!==fb){bg.style.backgroundImage="url('"+fb+"')";}else{bg.style.display='none';const ph=document.getElementById('mcph');if(ph)ph.style.display='flex';}};ti.src=imgUrl;}
   },50);
+
+  if(getCardTexture(c.code) && c.code){
+    const cached=_textureDataUri(c.code);
+    const viewer=document.getElementById('mcViewer');
+    if(cached && viewer) viewer.style.setProperty('--etch', `url('${cached}')`);
+    else _generateTextureForCard(c.code, imgUrl).then(uri=>{
+      const v=document.getElementById('mcViewer');
+      if(v) v.style.setProperty('--etch', `url('${uri}')`);
+    });
+  }
 
   // ── Info side ──
   const _row=(key,valHtml)=>`<div class="modal-stat-row"><span class="modal-stat-key">${key}</span><span class="modal-stat-val">${valHtml}</span></div>`;
@@ -1189,7 +1331,18 @@ function modalToggleTexture(on){
   const viewer=document.getElementById('mcViewer');
   if(viewer){
     viewer.classList.toggle('fx-texture', on);
-    if(on) viewer.style.setProperty('--etch', `url('${_textureDataUri(c.code)}')`);
+    if(on){
+      const cached=_textureDataUri(c.code);
+      if(cached) viewer.style.setProperty('--etch', `url('${cached}')`);
+      else {
+        const slug=toSlug(c.character), ed=_modalEd;
+        const imgUrl=_modalCustomImg||(CDN+slug+'-'+ed+'.jpg');
+        _generateTextureForCard(c.code, imgUrl).then(uri=>{
+          const v=document.getElementById('mcViewer');
+          if(v) v.style.setProperty('--etch', `url('${uri}')`);
+        });
+      }
+    }
   }
   if(typeof renderChars==='function') renderChars();
 }
@@ -1213,7 +1366,7 @@ function openCardZoom(){
   ov.onclick=e=>{ if(e.target===ov) closeCardZoom(); };
   ov.innerHTML=
     '<button class="card-zoom-close" onclick="closeCardZoom()">✕</button>'+
-    '<div class="modal-card-viewer fx-'+currentFx+(getCardTexture(c.code)?' fx-texture':'')+'" id="zoomViewer" style="--cardimg:url(\''+imgUrl+'\');--etch:url(\''+_textureDataUri(c.code)+'\')">'+
+    '<div class="modal-card-viewer fx-'+currentFx+(getCardTexture(c.code)?' fx-texture':'')+'" id="zoomViewer" style="--cardimg:url(\''+imgUrl+'\')">'+
       '<div class="modal-card-img-wrap" id="zoomImgWrap">'+
         '<div class="modal-card-bg" id="zoomBg" style="background-image:url(\''+imgUrl+'\')"></div>'+
         (frameOverlay?'<img class="modal-card-frame-canvas" src="'+frameOverlay+'" alt="" onerror="this.style.display=\'none\'">':'')+
@@ -1226,6 +1379,16 @@ function openCardZoom(){
   document.body.appendChild(ov);
   requestAnimationFrame(()=>ov.classList.add('visible'));
   _initCardTilt('zoomViewer', true);
+
+  if(getCardTexture(c.code) && c.code){
+    const cached=_textureDataUri(c.code);
+    const zViewer=document.getElementById('zoomViewer');
+    if(cached && zViewer) zViewer.style.setProperty('--etch', `url('${cached}')`);
+    else _generateTextureForCard(c.code, imgUrl).then(uri=>{
+      const v=document.getElementById('zoomViewer');
+      if(v) v.style.setProperty('--etch', `url('${uri}')`);
+    });
+  }
 }
 
 function closeCardZoom(){
