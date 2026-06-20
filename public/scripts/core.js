@@ -893,21 +893,23 @@ function _textureDataUri(code){
   if(_textureCache.has(code)) return _textureCache.get(code);
   const h = _seedFromCode(code);
   const seed = (h % 9000) + 1;
-  const angle = (h % 180); // line direction varies per card, 0-179deg
-  const spacing = 2.2 + (h % 30)/20; // line spacing 2.2-3.7px, varies per card
-  const warpFreq = (0.006 + (h % 40)/8000).toFixed(4); // how much the lines wobble/flow
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="420" viewBox="0 0 300 420">
+  const angle = (h % 180);
+  const spacing = 3.4 + (h % 20)/15; // ≈ 3.4-4.7px at card scale — reads as fine hatching, not noise
+  const lineW = (spacing*0.42).toFixed(2);
+  const warpFreq = (0.012 + (h % 20)/6000).toFixed(4); // gentle low-frequency wobble, not blobs
+  const W=274, H=405; // matches typical card render ratio
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
     <defs>
-      <filter id="warp">
+      <filter id="warp" x="-20%" y="-20%" width="140%" height="140%">
         <feTurbulence type="fractalNoise" baseFrequency="${warpFreq}" numOctaves="2" seed="${seed}" result="warpnoise"/>
-        <feDisplacementMap in="SourceGraphic" in2="warpnoise" scale="18" xChannelSelector="R" yChannelSelector="G"/>
+        <feDisplacementMap in="SourceGraphic" in2="warpnoise" scale="6" xChannelSelector="R" yChannelSelector="G"/>
       </filter>
       <pattern id="lines" width="${spacing}" height="${spacing}" patternUnits="userSpaceOnUse" patternTransform="rotate(${angle})">
         <rect width="${spacing}" height="${spacing}" fill="black"/>
-        <line x1="0" y1="0" x2="0" y2="${spacing}" stroke="white" stroke-width="${(spacing*0.55).toFixed(2)}"/>
+        <line x1="0" y1="0" x2="0" y2="${spacing}" stroke="white" stroke-width="${lineW}"/>
       </pattern>
     </defs>
-    <rect width="300" height="420" fill="url(#lines)" filter="url(#warp)"/>
+    <rect width="${W}" height="${H}" fill="url(#lines)" filter="url(#warp)"/>
   </svg>`;
   const uri = 'data:image/svg+xml;base64,' + btoa(svg);
   _textureCache.set(code, uri);
