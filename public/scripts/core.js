@@ -905,8 +905,8 @@ function _textureDataUri(code){
         <feDisplacementMap in="SourceGraphic" in2="warpnoise" scale="6" xChannelSelector="R" yChannelSelector="G"/>
       </filter>
       <pattern id="lines" width="${spacing}" height="${spacing}" patternUnits="userSpaceOnUse" patternTransform="rotate(${angle})">
-        <rect width="${spacing}" height="${spacing}" fill="black"/>
-        <line x1="0" y1="0" x2="0" y2="${spacing}" stroke="white" stroke-width="${lineW}"/>
+        <rect width="${spacing}" height="${spacing}" fill="#777"/>
+        <line x1="0" y1="0" x2="0" y2="${spacing}" stroke="#fff" stroke-width="${lineW}"/>
       </pattern>
     </defs>
     <rect width="${W}" height="${H}" fill="url(#lines)" filter="url(#warp)"/>
