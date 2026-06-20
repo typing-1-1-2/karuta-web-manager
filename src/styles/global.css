@@ -385,7 +385,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
   mask-position:center;
   mask-repeat:no-repeat;
 }
-.fx-texture .modal-fx-etch{opacity:.3}
+.fx-texture .modal-fx-etch{opacity:.4}
 
 /* Holo — repeating diagonal rainbow gradient */
 .fx-holo .modal-fx-shine{

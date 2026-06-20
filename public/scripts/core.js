@@ -894,8 +894,8 @@ function _textureDataUri(code){
   const h = _seedFromCode(code);
   const seed = (h % 9000) + 1;
   const angle = (h % 180);
-  const spacing = 3.4 + (h % 20)/15; // ≈ 3.4-4.7px at card scale — reads as fine hatching, not noise
-  const lineW = (spacing*0.42).toFixed(2);
+  const spacing = 5.5 + (h % 20)/8; // ≈ 5.5-8px — sparse, fine lines, not dense hatching
+  const lineW = (spacing*0.2).toFixed(2);
   const warpFreq = (0.012 + (h % 20)/6000).toFixed(4); // gentle low-frequency wobble, not blobs
   const W=274, H=405; // matches typical card render ratio
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
@@ -905,8 +905,7 @@ function _textureDataUri(code){
         <feDisplacementMap in="SourceGraphic" in2="warpnoise" scale="6" xChannelSelector="R" yChannelSelector="G"/>
       </filter>
       <pattern id="lines" width="${spacing}" height="${spacing}" patternUnits="userSpaceOnUse" patternTransform="rotate(${angle})">
-        <rect width="${spacing}" height="${spacing}" fill="#777"/>
-        <line x1="0" y1="0" x2="0" y2="${spacing}" stroke="#fff" stroke-width="${lineW}"/>
+        <line x1="0" y1="0" x2="0" y2="${spacing}" stroke="#fff" stroke-width="${lineW}" stroke-opacity="0.5"/>
       </pattern>
     </defs>
     <rect width="${W}" height="${H}" fill="url(#lines)" filter="url(#warp)"/>
