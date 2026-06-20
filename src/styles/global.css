@@ -372,10 +372,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
   opacity:0;transition:opacity .25s;
   border-radius:inherit;
   background-image:var(--etch);
-  background-size:140% 140%;
+  background-size:55% 55%;
   background-repeat:repeat;
   background-position:var(--px) var(--py);
-  mix-blend-mode:overlay;
+  mix-blend-mode:hard-light;
   -webkit-mask-image:var(--cardimg);
   -webkit-mask-size:cover;
   -webkit-mask-position:center;
@@ -385,7 +385,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
   mask-position:center;
   mask-repeat:no-repeat;
 }
-.fx-texture .modal-fx-etch{opacity:.5}
+.fx-texture .modal-fx-etch{opacity:.65}
 
 /* Holo — repeating diagonal rainbow gradient */
 .fx-holo .modal-fx-shine{

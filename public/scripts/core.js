@@ -885,25 +885,29 @@ function _seedFromCode(code){
   return h;
 }
 
-// Generates a unique, deterministic SVG turbulence texture (etched-foil pattern) per card code.
-// Returned as a data: URI usable directly in CSS url().
+// Generates a unique, deterministic SVG line-engraving texture (hatching pattern) per card code.
+// Mimics the directional etched-foil look (fine repeating lines that follow flow fields),
+// rather than blotchy fractal noise. Returned as a data: URI usable directly in CSS url().
 const _textureCache = new Map();
 function _textureDataUri(code){
   if(_textureCache.has(code)) return _textureCache.get(code);
   const h = _seedFromCode(code);
-  const seedX = (h % 1000) / 1000;
-  const seedY = ((h>>>10) % 1000) / 1000;
-  const baseFreq = (0.012 + (h % 50)/5000).toFixed(4); // ~0.012-0.022, varies per card
   const seed = (h % 9000) + 1;
+  const angle = (h % 180); // line direction varies per card, 0-179deg
+  const spacing = 2.2 + (h % 30)/20; // line spacing 2.2-3.7px, varies per card
+  const warpFreq = (0.006 + (h % 40)/8000).toFixed(4); // how much the lines wobble/flow
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="420" viewBox="0 0 300 420">
-    <filter id="n">
-      <feTurbulence type="fractalNoise" baseFrequency="${baseFreq} ${(baseFreq*1.6).toFixed(4)}" numOctaves="3" seed="${seed}" result="noise"/>
-      <feColorMatrix in="noise" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0"/>
-      <feComponentTransfer>
-        <feFuncA type="gamma" amplitude="1" exponent="2.2" offset="0"/>
-      </feComponentTransfer>
-    </filter>
-    <rect width="300" height="420" filter="url(#n)"/>
+    <defs>
+      <filter id="warp">
+        <feTurbulence type="fractalNoise" baseFrequency="${warpFreq}" numOctaves="2" seed="${seed}" result="warpnoise"/>
+        <feDisplacementMap in="SourceGraphic" in2="warpnoise" scale="18" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+      <pattern id="lines" width="${spacing}" height="${spacing}" patternUnits="userSpaceOnUse" patternTransform="rotate(${angle})">
+        <rect width="${spacing}" height="${spacing}" fill="black"/>
+        <line x1="0" y1="0" x2="0" y2="${spacing}" stroke="white" stroke-width="${(spacing*0.55).toFixed(2)}"/>
+      </pattern>
+    </defs>
+    <rect width="300" height="420" fill="url(#lines)" filter="url(#warp)"/>
   </svg>`;
   const uri = 'data:image/svg+xml;base64,' + btoa(svg);
   _textureCache.set(code, uri);
