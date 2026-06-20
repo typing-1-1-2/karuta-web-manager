@@ -893,22 +893,34 @@ function _textureDataUri(code){
   if(_textureCache.has(code)) return _textureCache.get(code);
   const h = _seedFromCode(code);
   const seed = (h % 9000) + 1;
-  const angle = (h % 180);
-  const spacing = 5.5 + (h % 20)/8; // ≈ 5.5-8px — sparse, fine lines, not dense hatching
-  const lineW = (spacing*0.2).toFixed(2);
-  const warpFreq = (0.012 + (h % 20)/6000).toFixed(4); // gentle low-frequency wobble, not blobs
-  const W=274, H=405; // matches typical card render ratio
+  const seed2 = ((h>>>7) % 9000) + 1;
+  const angle1 = (h % 180);
+  const angle2 = angle1 + 35 + (h % 40); // crosshatch: second layer at a different angle
+  const spacing1 = 5.5 + (h % 20)/8;
+  const spacing2 = 7 + ((h>>>4) % 16)/6;
+  const lineW1 = (spacing1*0.18).toFixed(2);
+  const lineW2 = (spacing2*0.14).toFixed(2);
+  const warpFreq = (0.012 + (h % 20)/6000).toFixed(4);
+  const W=274, H=405;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
     <defs>
       <filter id="warp" x="-20%" y="-20%" width="140%" height="140%">
         <feTurbulence type="fractalNoise" baseFrequency="${warpFreq}" numOctaves="2" seed="${seed}" result="warpnoise"/>
         <feDisplacementMap in="SourceGraphic" in2="warpnoise" scale="6" xChannelSelector="R" yChannelSelector="G"/>
       </filter>
-      <pattern id="lines" width="${spacing}" height="${spacing}" patternUnits="userSpaceOnUse" patternTransform="rotate(${angle})">
-        <line x1="0" y1="0" x2="0" y2="${spacing}" stroke="#fff" stroke-width="${lineW}" stroke-opacity="0.5"/>
+      <filter id="warp2" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="${warpFreq}" numOctaves="2" seed="${seed2}" result="warpnoise2"/>
+        <feDisplacementMap in="SourceGraphic" in2="warpnoise2" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+      <pattern id="lines1" width="${spacing1}" height="${spacing1}" patternUnits="userSpaceOnUse" patternTransform="rotate(${angle1})">
+        <line x1="0" y1="0" x2="0" y2="${spacing1}" stroke="#fff" stroke-width="${lineW1}" stroke-opacity="0.55"/>
+      </pattern>
+      <pattern id="lines2" width="${spacing2}" height="${spacing2}" patternUnits="userSpaceOnUse" patternTransform="rotate(${angle2})">
+        <line x1="0" y1="0" x2="0" y2="${spacing2}" stroke="#fff" stroke-width="${lineW2}" stroke-opacity="0.35"/>
       </pattern>
     </defs>
-    <rect width="${W}" height="${H}" fill="url(#lines)" filter="url(#warp)"/>
+    <rect width="${W}" height="${H}" fill="url(#lines1)" filter="url(#warp)"/>
+    <rect width="${W}" height="${H}" fill="url(#lines2)" filter="url(#warp2)"/>
   </svg>`;
   const uri = 'data:image/svg+xml;base64,' + btoa(svg);
   _textureCache.set(code, uri);
