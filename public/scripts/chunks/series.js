@@ -86,7 +86,10 @@ function filterSeriesCards(i){
   if(cards.length){
     const frag=document.createDocumentFragment();
     const tmp=document.createElement('div');
-    tmp.innerHTML=cards.map(c=>mkCard(c, `showModalFromSeries('${esc(c.code||c.character)}',${i})`)).join('');
+    tmp.innerHTML=cards.map(c=>{
+      const safeKey=(c.code||c.character).replace(/"/g,'&quot;').replace(/'/g,"\\'");
+      return mkCard(c, `showModalFromSeries(\"${safeKey}\",${i})`);
+    }).join('');
     while(tmp.firstChild)frag.appendChild(tmp.firstChild);
     grid.replaceChildren(frag);
   } else {
@@ -99,7 +102,7 @@ function filterSeriesCards(i){
 // Open modal with navigation list scoped to a specific series row
 function showModalFromSeries(key, rowIdx){
   const c=ALL.find(x=>x.code===key||x.character===key);
-  if(!c) return;
+  if(!c){ console.warn('[KWM] showModalFromSeries: card not found for key',key); return; }
   const list=(window._seriesCardList||{})[rowIdx]||[c];
   _modalCard=c;
   _modalEd=c.edition||'1';
@@ -107,7 +110,7 @@ function showModalFromSeries(key, rowIdx){
   _modalCustomImg=null;
   _modalEditMode=false;
   _modalList=list;
-  _modalIdx=list.findIndex(x=>x.code===c.code&&x.edition===c.edition);
+  _modalIdx=list.findIndex(x=>(x.code&&x.code===c.code)||(x.character===c.character&&x.edition===c.edition));
   if(_modalIdx<0) _modalIdx=0;
   const imgKey=c.code||(c.character+'|'+_modalEd);
   _loadCustomImgAsync(imgKey).then(img=>{
