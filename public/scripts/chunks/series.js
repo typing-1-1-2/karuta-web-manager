@@ -51,7 +51,22 @@ function toggleSeriesRow(i){
   const opening=inner.style.display==='none';
   inner.style.display=opening?'block':'none';
   row.classList.toggle('open',opening);
-  if(opening)filterSeriesCards(i);
+  if(opening){
+    filterSeriesCards(i);
+    // Wire click delegation for series cards (avoids inline onclick escaping issues)
+    const grid=document.getElementById('src-'+i);
+    if(grid && !grid._seriesDelegated){
+      grid._seriesDelegated=true;
+      grid.addEventListener('click', e=>{
+        const card=e.target.closest('.char-card[data-series-row]');
+        if(!card) return;
+        e.stopImmediatePropagation();
+        const rowIdx=+card.dataset.seriesRow;
+        const code=card.dataset.seriesCode;
+        if(code) showModalFromSeries(code, rowIdx);
+      }, true); // capture phase — fires before mkCard's inline onclick
+    }
+  }
 }
 
 function filterSeriesCards(i){
@@ -86,10 +101,14 @@ function filterSeriesCards(i){
   if(cards.length){
     const frag=document.createDocumentFragment();
     const tmp=document.createElement('div');
-    tmp.innerHTML=cards.map(c=>{
-      const safeKey=(c.code||c.character).replace(/"/g,'&quot;').replace(/'/g,"\\'");
-      return mkCard(c, `showModalFromSeries(\"${safeKey}\",${i})`);
-    }).join('');
+    // Use data-series-row attribute instead of inline onclick to avoid quote escaping issues
+    tmp.innerHTML=cards.map(c=>mkCard(c)).join('');
+    // Patch onclick via data attribute after parsing
+    tmp.querySelectorAll('.char-card').forEach((el,idx)=>{
+      const c=cards[idx]; if(!c) return;
+      el.dataset.seriesRow=i;
+      el.dataset.seriesCode=c.code||c.character;
+    });
     while(tmp.firstChild)frag.appendChild(tmp.firstChild);
     grid.replaceChildren(frag);
   } else {

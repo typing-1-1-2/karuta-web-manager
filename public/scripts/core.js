@@ -1389,7 +1389,7 @@ function _renderModal(){
     '</div>'+
     '<label class="modal-fx-texture-toggle" id="mcTextureToggle">'+
       '<input type="checkbox" id="mcTextureCheck"'+(getCardTexture(c.code)?' checked':'')+' onchange="modalToggleTexture(this.checked)">'+
-      '<span>🌸 Patrón de textura (grabado único)</span>'+
+      '<span>🌟 Solo fondo (el efecto no afecta al personaje)</span>'+
     '</label>'+
     '<div class="modal-drop-zone" id="mcDropZone" onclick="document.getElementById(&quot;mcFileIn&quot;).click()" ondragover="event.preventDefault();this.classList.add(&quot;drag-over&quot;)" ondragleave="this.classList.remove(&quot;drag-over&quot;)" ondrop="handleModalDrop(event)">'+
       '<input type="file" id="mcFileIn" accept="image/*" style="display:none" onchange="handleModalFile(this.files[0])">'+
@@ -1416,20 +1416,10 @@ function _renderModal(){
   setTimeout(()=>{
     const bg=document.getElementById('mcbg');
     if(bg){const ti=new Image();ti.onerror=()=>{const fb=_modalCustomImg?null:(CDN+slug+'-1.jpg');if(fb&&imgUrl!==fb){bg.style.backgroundImage="url('"+fb+"')";}else{bg.style.display='none';const ph=document.getElementById('mcph');if(ph)ph.style.display='flex';}};ti.src=imgUrl;}
-    // Trigger mask generation for CDN cards with a holo effect
+    // Apply mask only if the user explicitly enabled 'solo fondo'
     const viewer=document.getElementById('mcViewer');
-    _maybeGenerateMask(viewer, c.code, imgUrl, !!_modalCustomImg);
+    if(getCardTexture(c.code)) _maybeGenerateMask(viewer, c.code, imgUrl, !!_modalCustomImg);
   },50);
-
-  if(getCardTexture(c.code) && c.code){
-    const cached=_textureDataUri(c.code);
-    const viewer=document.getElementById('mcViewer');
-    if(cached && viewer) viewer.style.setProperty('--etch', `url('${cached}')`);
-    else _generateTextureForCard(c.code, imgUrl).then(uri=>{
-      const v=document.getElementById('mcViewer');
-      if(v) v.style.setProperty('--etch', `url('${uri}')`);
-    });
-  }
 
   // ── Info side ──
   const _row=(key,valHtml)=>`<div class="modal-stat-row"><span class="modal-stat-key">${key}</span><span class="modal-stat-val">${valHtml}</span></div>`;
@@ -1466,12 +1456,12 @@ function modalSetEffect(effectId){
   if(viewer){
     viewer.classList.remove(...CARD_EFFECTS.map(e=>'fx-'+e.id));
     viewer.classList.add('fx-'+effectId);
-    // If a real holo effect is selected and no custom img, kick off mask generation
-    if(effectId!=='none' && !_modalCustomImg){
+    // Apply mask only if 'solo fondo' is enabled
+    if(effectId!=='none' && getCardTexture(c.code) && !_modalCustomImg){
       const slug=toSlug(c.character), ed=_modalEd;
       const imgUrl=CDN+slug+'-'+ed+'.jpg';
       _maybeGenerateMask(viewer, c.code, imgUrl, false);
-    } else if(effectId==='none'){
+    } else if(effectId==='none' || !getCardTexture(c.code)){
       viewer.classList.remove('has-mask');
       viewer.style.removeProperty('--cardmask');
     }
@@ -1487,21 +1477,17 @@ function modalToggleTexture(on){
   setCardTexture(c.code, on);
   const viewer=document.getElementById('mcViewer');
   if(viewer){
-    viewer.classList.toggle('fx-texture', on);
     if(on){
-      const cached=_textureDataUri(c.code);
-      if(cached) viewer.style.setProperty('--etch', `url('${cached}')`);
-      else {
-        const slug=toSlug(c.character), ed=_modalEd;
-        const imgUrl=_modalCustomImg||(CDN+slug+'-'+ed+'.jpg');
-        _generateTextureForCard(c.code, imgUrl).then(uri=>{
-          const v=document.getElementById('mcViewer');
-          if(v) v.style.setProperty('--etch', `url('${uri}')`);
-        });
-      }
+      // Apply AI mask so holo only covers the background
+      const slug=toSlug(c.character), ed=_modalEd;
+      const imgUrl=_modalCustomImg||(CDN+slug+'-'+ed+'.jpg');
+      _maybeGenerateMask(viewer, c.code, imgUrl, !!_modalCustomImg);
+    } else {
+      // Remove mask — holo applies to entire card
+      viewer.classList.remove('has-mask');
+      viewer.style.removeProperty('--cardmask');
     }
   }
-  if(typeof renderChars==='function') renderChars();
 }
 
 /* ── 3D TILT (mouse + gyroscope) ── only active inside the zoom view ── */
@@ -1546,9 +1532,9 @@ function openCardZoom(){
       if(v) v.style.setProperty('--etch', `url('${uri}')`);
     });
   }
-  // Apply mask to zoom viewer too (CDN only)
+  // Apply mask to zoom viewer only if 'solo fondo' is enabled
   const zv=document.getElementById('zoomViewer');
-  if(zv) _maybeGenerateMask(zv, c.code, imgUrl, !!_modalCustomImg);
+  if(zv && getCardTexture(c.code)) _maybeGenerateMask(zv, c.code, imgUrl, !!_modalCustomImg);
 }
 
 function closeCardZoom(){
