@@ -342,7 +342,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
   position:absolute;inset:0;pointer-events:none;
   opacity:0;transition:opacity .25s;
   border-radius:inherit;
-  /* Clip the holo effect to the card artwork's alpha shape, not the rectangular box */
+  /* Default: clip to card alpha shape (works for PNGs) */
   -webkit-mask-image:var(--cardimg);
   -webkit-mask-size:cover;
   -webkit-mask-position:center;
@@ -351,6 +351,24 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
   mask-size:cover;
   mask-position:center;
   mask-repeat:no-repeat;
+}
+/* When AI mask is available: invert it so holo only covers the BACKGROUND,
+   leaving the character clean. The mask PNG is white=character,
+   so we invert it with luminance masking to get black=character (no effect). */
+.has-mask .modal-fx-shine,
+.has-mask .modal-fx-glare{
+  -webkit-mask-image:var(--cardmask);
+  -webkit-mask-size:cover;
+  -webkit-mask-position:center;
+  -webkit-mask-repeat:no-repeat;
+  -webkit-mask-mode:luminance;
+  mask-image:var(--cardmask);
+  mask-size:cover;
+  mask-position:center;
+  mask-repeat:no-repeat;
+  mask-mode:luminance;
+  -webkit-mask-composite:exclude;
+  mask-composite:exclude;
 }
 .modal-fx-glare{
   background:radial-gradient(circle at var(--px) var(--py), rgba(255,255,255,.65) 0%, rgba(255,255,255,.2) 35%, transparent 65%);

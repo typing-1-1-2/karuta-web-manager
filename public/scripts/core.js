@@ -1059,6 +1059,122 @@ function _fallbackTextureDataUri(code){
   return 'data:image/svg+xml;base64,' + btoa(svg);
 }
 
+/* ── CARD MASK (background segmentation via @imgly/background-removal) ─────────────
+   Generates a foreground mask for each CDN card image (not custom images).
+   The mask (PNG, white=character, black=background) is stored in IDB with
+   prefix 'mask:' and used as CSS --cardmask so holo effects apply only
+   to the background, leaving the character clean.
+*/
+const _maskCache    = new Map(); // code -> dataURI (in memory)
+const _maskPending  = new Map(); // code -> Promise
+const _MASK_IDB_PFX = 'mask:';
+let   _bgRemoveLib  = null;       // lazy-loaded @imgly module
+let   _bgRemoveLoading = false;
+
+// Load the @imgly/background-removal library lazily (only when first needed)
+async function _loadBgRemoveLib(){
+  if(_bgRemoveLib) return _bgRemoveLib;
+  if(_bgRemoveLoading) return new Promise(res=>{
+    const t=setInterval(()=>{ if(_bgRemoveLib){ clearInterval(t); res(_bgRemoveLib); } },100);
+  });
+  _bgRemoveLoading=true;
+  try{
+    _bgRemoveLib = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/background-removal.js');
+  }catch(e){
+    console.warn('[KWM] background-removal lib failed to load:', e);
+    _bgRemoveLib = null;
+  }
+  _bgRemoveLoading=false;
+  return _bgRemoveLib;
+}
+
+// IDB helpers for masks (reuse the same 'karutaImgs' IDB, different key prefix)
+async function _saveMaskIdb(code, dataUrl){
+  try{
+    const db=await _openIdb();
+    db.transaction(_idbStore,'readwrite').objectStore(_idbStore).put(dataUrl, _MASK_IDB_PFX+code);
+  }catch(e){}
+}
+async function _loadMaskIdb(code){
+  try{
+    const db=await _openIdb();
+    return await new Promise((res,rej)=>{
+      const r=db.transaction(_idbStore,'readonly').objectStore(_idbStore).get(_MASK_IDB_PFX+code);
+      r.onsuccess=()=>res(r.result||null);
+      r.onerror=()=>res(null);
+    });
+  }catch(e){ return null; }
+}
+
+// Synchronous getter — returns cached mask URI or null
+function _cardMaskUri(code){
+  return _maskCache.get(code)||null;
+}
+
+// Async: generate or retrieve from IDB the foreground mask for a card.
+// imgUrl: the CDN URL of the card image.
+// Returns a data: URI (PNG) where white=character, black=background.
+// ONLY called for CDN images (not custom).
+async function _getCardMask(code, imgUrl){
+  if(!code||!imgUrl) return null;
+  if(_maskCache.has(code)) return _maskCache.get(code);
+  if(_maskPending.has(code)) return _maskPending.get(code);
+
+  const p=(async()=>{
+    // 1. Try IDB cache first
+    const cached=await _loadMaskIdb(code);
+    if(cached){
+      _maskCache.set(code, cached);
+      return cached;
+    }
+    // 2. Load the AI library
+    const lib=await _loadBgRemoveLib();
+    if(!lib) return null;
+    try{
+      // removeBackground returns a Blob with the mask PNG
+      const blob=await lib.removeBackground(imgUrl,{
+        model:'isnet_quint8', // smallest/fastest model
+        output:{ type:'mask', format:'image/png' },
+        debug: false,
+      });
+      const uri=await new Promise(res=>{
+        const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob);
+      });
+      _maskCache.set(code, uri);
+      await _saveMaskIdb(code, uri);
+      return uri;
+    }catch(e){
+      console.warn('[KWM] mask generation failed for',code,e);
+      return null;
+    }
+  })();
+
+  _maskPending.set(code, p);
+  const result=await p;
+  _maskPending.delete(code);
+  return result;
+}
+
+// Apply a mask to a viewer element by setting --cardmask and adding class 'has-mask'
+function _applyMaskToViewer(viewerEl, maskUri){
+  if(!viewerEl||!maskUri) return;
+  viewerEl.style.setProperty('--cardmask', `url('${maskUri}')`);
+  viewerEl.classList.add('has-mask');
+}
+
+// Kick off mask generation for the current modal card (CDN only, no custom img)
+// and apply once ready.
+function _maybeGenerateMask(viewerEl, code, imgUrl, isCustom){
+  if(isCustom||!code||!imgUrl||getCardEffect(code)==='none') return;
+  const cached=_cardMaskUri(code);
+  if(cached){ _applyMaskToViewer(viewerEl, cached); return; }
+  _getCardMask(code, imgUrl).then(uri=>{
+    if(!uri) return;
+    const el=document.getElementById(viewerEl?.id||'mcViewer');
+    if(el) _applyMaskToViewer(el, uri);
+  });
+}
+
 function modalToggleFrame(){_modalFrameOn=!_modalFrameOn;_renderModal();}
 
 function modalCopyCode(){
@@ -1271,6 +1387,9 @@ function _renderModal(){
   setTimeout(()=>{
     const bg=document.getElementById('mcbg');
     if(bg){const ti=new Image();ti.onerror=()=>{const fb=_modalCustomImg?null:(CDN+slug+'-1.jpg');if(fb&&imgUrl!==fb){bg.style.backgroundImage="url('"+fb+"')";}else{bg.style.display='none';const ph=document.getElementById('mcph');if(ph)ph.style.display='flex';}};ti.src=imgUrl;}
+    // Trigger mask generation for CDN cards with a holo effect
+    const viewer=document.getElementById('mcViewer');
+    _maybeGenerateMask(viewer, c.code, imgUrl, !!_modalCustomImg);
   },50);
 
   if(getCardTexture(c.code) && c.code){
@@ -1318,6 +1437,15 @@ function modalSetEffect(effectId){
   if(viewer){
     viewer.classList.remove(...CARD_EFFECTS.map(e=>'fx-'+e.id));
     viewer.classList.add('fx-'+effectId);
+    // If a real holo effect is selected and no custom img, kick off mask generation
+    if(effectId!=='none' && !_modalCustomImg){
+      const slug=toSlug(c.character), ed=_modalEd;
+      const imgUrl=CDN+slug+'-'+ed+'.jpg';
+      _maybeGenerateMask(viewer, c.code, imgUrl, false);
+    } else if(effectId==='none'){
+      viewer.classList.remove('has-mask');
+      viewer.style.removeProperty('--cardmask');
+    }
   }
   document.querySelectorAll('#mcFxPicker .modal-fx-chip').forEach(chip=>chip.classList.remove('active'));
   const btn=[...document.querySelectorAll('#mcFxPicker .modal-fx-chip')].find(b=>b.getAttribute('onclick')?.includes(`'${effectId}'`));
@@ -1389,6 +1517,9 @@ function openCardZoom(){
       if(v) v.style.setProperty('--etch', `url('${uri}')`);
     });
   }
+  // Apply mask to zoom viewer too (CDN only)
+  const zv=document.getElementById('zoomViewer');
+  if(zv) _maybeGenerateMask(zv, c.code, imgUrl, !!_modalCustomImg);
 }
 
 function closeCardZoom(){
