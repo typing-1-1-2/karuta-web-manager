@@ -14,6 +14,10 @@ function renderSeries(){
         <span class="series-count">${d.count} 🃏</span>
         <span class="series-burn">🔥${d.burn.toLocaleString()}</span>
         <span class="series-chevron">▼</span>
+        <button class="series-view-btn" onclick="event.stopPropagation();toggleSeriesRow(${i})" title="Ver cartas de esta serie">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Ver cartas
+        </button>
       </div>
       <div class="series-inner" id="si-${i}" style="display:none">
         <div class="series-toolbar">

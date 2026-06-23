@@ -352,9 +352,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
   mask-position:center;
   mask-repeat:no-repeat;
 }
-/* When AI mask is available: invert it so holo only covers the BACKGROUND,
-   leaving the character clean. The mask PNG is white=character,
-   so we invert it with luminance masking to get black=character (no effect). */
+/* When AI mask is available: mask is already inverted (black=character, white=background)
+   so holo effect naturally shows only on the background, leaving character clean.
+   Uses luminance mode so white areas = show effect, black areas = hide effect. */
 .has-mask .modal-fx-shine,
 .has-mask .modal-fx-glare{
   -webkit-mask-image:var(--cardmask);
@@ -367,8 +367,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
   mask-position:center;
   mask-repeat:no-repeat;
   mask-mode:luminance;
-  -webkit-mask-composite:exclude;
-  mask-composite:exclude;
 }
 .modal-fx-glare{
   background:radial-gradient(circle at var(--px) var(--py), rgba(255,255,255,.65) 0%, rgba(255,255,255,.2) 35%, transparent 65%);

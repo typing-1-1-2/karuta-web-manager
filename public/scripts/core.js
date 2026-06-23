@@ -1140,9 +1140,13 @@ async function _getCardMask(code, imgUrl){
       const uri=await new Promise(res=>{
         const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob);
       });
-      _maskCache.set(code, uri);
-      await _saveMaskIdb(code, uri);
-      return uri;
+      // Invert the mask PNG in canvas: original is white=character, black=background.
+      // We need the INVERTED version (black=character, white=background) so that
+      // CSS mask-image naturally clips to the background only (luminance masking).
+      const invertedUri = await _invertMaskPng(uri);
+      _maskCache.set(code, invertedUri);
+      await _saveMaskIdb(code, invertedUri);
+      return invertedUri;
     }catch(e){
       console.warn('[KWM] mask generation failed for',code,e);
       return null;
@@ -1160,6 +1164,31 @@ function _applyMaskToViewer(viewerEl, maskUri){
   if(!viewerEl||!maskUri) return;
   viewerEl.style.setProperty('--cardmask', `url('${maskUri}')`);
   viewerEl.classList.add('has-mask');
+}
+
+// Inverts a mask PNG data URI (white<->black), keeping alpha intact.
+// Used to convert the @imgly mask (white=fg) to our CSS mask (white=where effect shows = bg).
+function _invertMaskPng(dataUri){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement('canvas');
+      c.width=img.naturalWidth; c.height=img.naturalHeight;
+      const ctx=c.getContext('2d');
+      ctx.drawImage(img,0,0);
+      const d=ctx.getImageData(0,0,c.width,c.height);
+      // Invert RGB channels, keep alpha
+      for(let i=0;i<d.data.length;i+=4){
+        d.data[i]  =255-d.data[i];
+        d.data[i+1]=255-d.data[i+1];
+        d.data[i+2]=255-d.data[i+2];
+      }
+      ctx.putImageData(d,0,0);
+      res(c.toDataURL('image/png'));
+    };
+    img.onerror=()=>rej(new Error('invert failed'));
+    img.src=dataUri;
+  });
 }
 
 // Kick off mask generation for the current modal card (CDN only, no custom img)
