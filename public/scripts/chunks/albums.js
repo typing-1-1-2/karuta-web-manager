@@ -254,6 +254,7 @@ async function albRename(bi){
 
 async function albDelete(bi){
 
+  const b = albumBooks[bi]; if(!b) return;
   if(!await dlgConfirm('¿Eliminar el álbum <strong>'+esc(b.name)+'</strong>? Esta acción no se puede deshacer.',{icon:'🗑',title:'Eliminar álbum',type:'danger',okText:'Eliminar',cancelText:'Cancelar'})) return;
   albumBooks.splice(bi, 1);
   _albSave();
