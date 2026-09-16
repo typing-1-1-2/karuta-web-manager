@@ -866,13 +866,6 @@ function setCardTexture(code, on){
   const m=_getCardTextures();
   if(on) m[code]=true; else delete m[code];
   _setCardTextures(m);
-  document.querySelectorAll(`[data-code="${CSS.escape(code)}"]`).forEach(el=>{
-    el.classList.toggle('fx-texture', on);
-    if(on){
-      const cached=_textureDataUri(code);
-      if(cached) el.style.setProperty('--etch', `url('${cached}')`);
-    }
-  });
 }
 
 // Deterministic seed from a string (card code)
@@ -1194,14 +1187,13 @@ function _renderModal(){
 
   // ── Card side ──
   document.getElementById('modalCardSide').innerHTML=
-    '<div class="modal-card-viewer fx-'+currentFx+(getCardTexture(c.code)?' fx-texture':'')+'" id="mcViewer" style="--cardimg:url(\''+imgUrl+'\')">'+
+    '<div class="modal-card-viewer fx-'+currentFx+'" id="mcViewer" style="--cardimg:url(\''+imgUrl+'\')">'+
       '<div class="modal-card-img-wrap" id="mci">'+
         '<div class="modal-card-bg" id="mcbg" style="background-image:url(\''+imgUrl+'\')"></div>'+
         (frameOverlay?'<img class="modal-card-frame-canvas" id="mcframe" src="'+frameOverlay+'" alt="" onerror="this.style.display=\'none\'">':'')+
         '<div class="modal-card-placeholder" id="mcph" style="display:none">🎴</div>'+
         '<div class="modal-fx-shine"></div>'+
         '<div class="modal-fx-glare"></div>'+
-        '<div class="modal-fx-etch"></div>'+
         '<button class="modal-zoom-btn" onclick="event.stopPropagation();openCardZoom()" title="Ampliar">'+
           '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>'+
         '</button>'+
@@ -1333,13 +1325,12 @@ function openCardZoom(){
   ov.onclick=e=>{ if(e.target===ov) closeCardZoom(); };
   ov.innerHTML=
     '<button class="card-zoom-close" onclick="closeCardZoom()">✕</button>'+
-    '<div class="modal-card-viewer fx-'+currentFx+(getCardTexture(c.code)?' fx-texture':'')+'" id="zoomViewer" style="--cardimg:url(\''+imgUrl+'\')">'+
+    '<div class="modal-card-viewer fx-'+currentFx+'" id="zoomViewer" style="--cardimg:url(\''+imgUrl+'\')">'+
       '<div class="modal-card-img-wrap" id="zoomImgWrap">'+
         '<div class="modal-card-bg" id="zoomBg" style="background-image:url(\''+imgUrl+'\')"></div>'+
         (frameOverlay?'<img class="modal-card-frame-canvas" src="'+frameOverlay+'" alt="" onerror="this.style.display=\'none\'">':'')+
         '<div class="modal-fx-shine"></div>'+
         '<div class="modal-fx-glare"></div>'+
-        '<div class="modal-fx-etch"></div>'+
       '</div>'+
     '</div>'+
     '<div class="card-zoom-hint">Mueve el ratón o el dispositivo para rotar</div>';
@@ -1347,15 +1338,6 @@ function openCardZoom(){
   requestAnimationFrame(()=>ov.classList.add('visible'));
   _initCardTilt('zoomViewer', true);
 
-  if(getCardTexture(c.code) && c.code){
-    const cached=_textureDataUri(c.code);
-    const zViewer=document.getElementById('zoomViewer');
-    if(cached && zViewer) zViewer.style.setProperty('--etch', `url('${cached}')`);
-    else _generateTextureForCard(c.code, imgUrl).then(uri=>{
-      const v=document.getElementById('zoomViewer');
-      if(v) v.style.setProperty('--etch', `url('${uri}')`);
-    });
-  }
   // Apply mask to zoom viewer only if 'solo fondo' is enabled
   const zv=document.getElementById('zoomViewer');
   if(zv && getCardTexture(c.code)) _maybeGenerateMask(zv, c.code, imgUrl, !!_modalCustomImg);
