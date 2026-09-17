@@ -1,6 +1,9 @@
 // chunk: series.js
+const _SERIES_FILTER_IDS=['searchSeries','sortSeries'];
 
 function renderSeries(){
+
+  _restoreFilters('series', _SERIES_FILTER_IDS);
 
   const entries=_buildSeriesData();
   const maxC=entries[0]?.[1]?.count||1;

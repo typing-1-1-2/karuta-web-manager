@@ -1,10 +1,13 @@
 // chunk: workers.js
+const _WORKERS_FILTER_IDS=['searchWorker','filterEffort','sortWorker'];
 
 function renderWorkers(){
 
+  _restoreFilters('workers', _WORKERS_FILTER_IDS);
   const q=(document.getElementById('searchWorker')?.value||'').toLowerCase();
   const ef=document.getElementById('filterEffort')?.value||'';
   const sort=document.getElementById('sortWorker')?.value||'effort';
+  _saveFilters('workers', _WORKERS_FILTER_IDS);
   let list=ALL.filter(c=>{
     const mQ=!q||(c.character||'').toLowerCase().includes(q)||(c.series||'').toLowerCase().includes(q);
     const efN=+c['worker.effort']||0;

@@ -743,6 +743,7 @@ function _roundFill(ctx,x,y,w,h,r){ ctx.fillStyle=ctx.fillStyle; _rrect(ctx,x,y,
 function _buildSeriesData(){
   const q=(document.getElementById('searchSeries')?.value||'').toLowerCase();
   const sort=document.getElementById('sortSeries')?.value||'count';
+  _saveFilters('series', ['searchSeries','sortSeries']);
   const map={};
   ALL.forEach(c=>{const s=c.series||'Desconocida';if(!map[s])map[s]={count:0,burn:0,cards:[]};map[s].count++;map[s].burn+=(+c.burnValue||0);map[s].cards.push(c);});
   let entries=Object.entries(map).filter(([s])=>!q||s.toLowerCase().includes(q));
@@ -1019,6 +1020,27 @@ function _maybeGenerateMask(viewerEl, code, imgUrl, isCustom){
     const el=document.getElementById(viewerEl?.id||'mcViewer');
     if(el) _applyMaskToViewer(el, uri);
   });
+}
+
+/* ── FILTER PERSISTENCE (sessionStorage per section) ───────────────────────
+   Saves/restores filter input values when navigating between sections.
+   Uses sessionStorage so filters reset on new tab/session but persist
+   within the same browsing session. */
+function _saveFilters(section, ids){
+  const vals={};
+  ids.forEach(id=>{ const el=document.getElementById(id); if(el) vals[id]=el.value; });
+  try{ sessionStorage.setItem('kwmFilters_'+section, JSON.stringify(vals)); }catch(e){}
+}
+function _restoreFilters(section, ids){
+  try{
+    const raw=sessionStorage.getItem('kwmFilters_'+section);
+    if(!raw) return;
+    const vals=JSON.parse(raw);
+    ids.forEach(id=>{ const el=document.getElementById(id); if(el&&vals[id]!==undefined) el.value=vals[id]; });
+  }catch(e){}
+}
+function _clearSavedFilters(section){
+  try{ sessionStorage.removeItem('kwmFilters_'+section); }catch(e){}
 }
 
 function modalToggleFrame(){_modalFrameOn=!_modalFrameOn;_renderModal();}

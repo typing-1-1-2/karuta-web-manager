@@ -1,7 +1,10 @@
 // chunk: cards.js
+const _CHARS_FILTER_IDS=['searchChar','filterQual','filterEdition','filterMorphed','filterFrame','filterTag','filterGrabbed','filterPrint','sortChar'];
 
 function renderChars(){
 
+  // Restore saved filters before building the list
+  _restoreFilters('chars', _CHARS_FILTER_IDS);
   charsPage=40;
   const list=_buildCharList();
   _modalList=list;
@@ -76,9 +79,12 @@ function _buildCharList(){
   list.sort(fns[sort]||fns.date);
 
   // Show clear button if any filter is active
-  const anyFilter=q||qual||ed||morphed||frame||tag||grabbed;
+  const anyFilter=q||qual||ed||morphed||frame||tag||grabbed||print||(sort!=='date');
   const btn=document.getElementById('btnClearFilters');
   if(btn) btn.style.opacity=anyFilter?'1':'0.4';
+
+  // Persist filters for this session
+  _saveFilters('chars', _CHARS_FILTER_IDS);
 
   return list;
 }
@@ -112,6 +118,7 @@ function clearCharFilters(){
     const el=document.getElementById(id);if(el)el.value='';
   });
   document.getElementById('sortChar').value='date';
+  _clearSavedFilters('chars');
   renderChars();
 }
 
