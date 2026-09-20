@@ -3,9 +3,10 @@ const _CHARS_FILTER_IDS=['searchChar','filterQual','filterEdition','filterMorphe
 
 function renderChars(){
 
-  // Restore saved filters before building the list
-  _restoreFilters('chars', _CHARS_FILTER_IDS);
   charsPage=40;
+  // Restore saved filters — only if the DOM inputs already exist
+  const firstInput=document.getElementById('searchChar');
+  if(firstInput) _restoreFilters('chars', _CHARS_FILTER_IDS);
   const list=_buildCharList();
   _modalList=list;
   document.getElementById('charCount').textContent=`${list.length.toLocaleString()} ${t('cards')}`;

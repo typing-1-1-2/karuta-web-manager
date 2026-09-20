@@ -3,7 +3,7 @@ const _WORKERS_FILTER_IDS=['searchWorker','filterEffort','sortWorker'];
 
 function renderWorkers(){
 
-  _restoreFilters('workers', _WORKERS_FILTER_IDS);
+  if(document.getElementById('searchWorker')) _restoreFilters('workers', _WORKERS_FILTER_IDS);
   const q=(document.getElementById('searchWorker')?.value||'').toLowerCase();
   const ef=document.getElementById('filterEffort')?.value||'';
   const sort=document.getElementById('sortWorker')?.value||'effort';
