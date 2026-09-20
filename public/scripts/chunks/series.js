@@ -1,9 +1,13 @@
 // chunk: series.js
 const _SERIES_FILTER_IDS=['searchSeries','sortSeries'];
+let _seriesFiltersRestored=false;
 
 function renderSeries(){
 
-  if(document.getElementById('searchSeries')) _restoreFilters('series', _SERIES_FILTER_IDS);
+  if(!_seriesFiltersRestored && document.getElementById('searchSeries')){
+    _restoreFilters('series', _SERIES_FILTER_IDS);
+    _seriesFiltersRestored=true;
+  }
   const entries=_buildSeriesData();
   const maxC=entries[0]?.[1]?.count||1;
   const list=document.getElementById('seriesList');

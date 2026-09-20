@@ -1,12 +1,18 @@
 // chunk: cards.js
 const _CHARS_FILTER_IDS=['searchChar','filterQual','filterEdition','filterMorphed','filterFrame','filterTag','filterGrabbed','filterPrint','sortChar'];
+let _charsFiltersRestored=false;
 
 function renderChars(){
 
   charsPage=40;
-  // Restore saved filters — only if the DOM inputs already exist
-  const firstInput=document.getElementById('searchChar');
-  if(firstInput) _restoreFilters('chars', _CHARS_FILTER_IDS);
+  // Restore saved filters only on first render (page load), not on every filter change
+  if(!_charsFiltersRestored){
+    const firstInput=document.getElementById('searchChar');
+    if(firstInput){
+      _restoreFilters('chars', _CHARS_FILTER_IDS);
+      _charsFiltersRestored=true;
+    }
+  }
   const list=_buildCharList();
   _modalList=list;
   document.getElementById('charCount').textContent=`${list.length.toLocaleString()} ${t('cards')}`;
