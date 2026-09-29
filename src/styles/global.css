@@ -2410,3 +2410,26 @@ select.wl-input{cursor:pointer}
 .topbar-page-title{font-size:13.5px;font-weight:500}
 .topbar-search-btn{padding:5px 10px;border-radius:6px;font-size:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04)}
 .topbar-search-btn:hover{border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.06)}
+
+/* ══════ STATS TABS & SECTIONS ══════════════════════════════════════ */
+.stat-tabs{display:flex;gap:6px;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:0}
+.stat-tab{background:none;border:none;border-bottom:2px solid transparent;padding:8px 20px;font-size:13px;font-weight:500;color:var(--text3);cursor:pointer;font-family:inherit;transition:color .15s,border-color .15s;margin-bottom:-1px}
+.stat-tab:hover{color:var(--text2)}
+.stat-tab.active{color:var(--accent2);border-bottom-color:var(--accent2)}
+.stat-section{display:block}
+.stat-section.hidden{display:none}
+
+/* Score de colección (general) */
+.coll-score-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:120px}
+.coll-score-num{font-size:52px;font-weight:700;font-family:'JetBrains Mono',monospace;background:linear-gradient(135deg,var(--sky),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1}
+.coll-score-label{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+.coll-score-grade{font-size:22px;font-weight:700;padding:4px 14px;border-radius:99px;margin-top:2px}
+.coll-score-bars{flex:1;display:flex;flex-direction:column;gap:10px;min-width:220px}
+.coll-score-bar-row{display:flex;flex-direction:column;gap:4px}
+.coll-score-bar-label{font-size:11px;color:var(--text3);display:flex;justify-content:space-between}
+.coll-score-bar-track{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.coll-score-bar-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.coll-facts{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;min-width:220px}
+.coll-fact{font-size:12px;color:var(--text2);display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)}
+.coll-fact:last-child,.coll-fact:nth-last-child(2){border-bottom:none}
+.coll-fact span:last-child{font-weight:600;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px}

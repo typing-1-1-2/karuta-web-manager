@@ -2,8 +2,23 @@
 // PanelStats.astro
 ---
 <div class="tab-panel" id="panel-stats">
-  <div class="stat-kpi-grid" id="statKpiGrid"></div>
-  <div class="stat-lucky-card" id="statLucky"></div>
+  <!-- Stats sub-tabs -->
+  <div class="stat-tabs">
+    <button class="stat-tab active" id="stab-grabs" onclick="switchStatTab('grabs')" data-i18n="myGrabs">Mis Grabs</button>
+    <button class="stat-tab" id="stab-general" onclick="switchStatTab('general')" data-i18n="generalCollection">Colección General</button>
+  </div>
+
+  <!-- SECCIÓN: Mis Grabs -->
+  <div class="stat-section" id="statsec-grabs">
+    <div class="stat-kpi-grid" id="statKpiGrid"></div>
+    <div class="stat-lucky-card" id="statLucky"></div>
+  </div>
+
+  <!-- SECCIÓN: Colección General -->
+  <div class="stat-section hidden" id="statsec-general">
+    <div class="stat-kpi-grid" id="statKpiGridGeneral"></div>
+    <div class="stat-lucky-card" id="statCollScore"></div>
+  </div>
 
   <div class="charts-grid">
     <div class="chart-card">

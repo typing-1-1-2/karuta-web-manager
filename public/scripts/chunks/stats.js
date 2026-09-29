@@ -5,6 +5,8 @@ function buildCharts(){
   destroyCharts();
   _buildStatKpis();
   _buildLuckyScore();
+  _buildStatKpisGeneral();
+  _buildCollScore();
 
   const C=Chart, gc='rgba(255,255,255,0.05)', tc='#555c78', font={family:"'Outfit',sans-serif",size:12};
   const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
@@ -164,6 +166,163 @@ function buildCharts(){
     labels:q4edKeys.map(e=>'Ed.'+e),
     datasets:[{data:q4edKeys.map(e=>q4edMap[e]),backgroundColor:q4edColors,borderRadius:6,borderSkipped:false}]
   },options:{...base,plugins:{...base.plugins,tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} ★★★★`}}}}});
+}
+
+function _buildStatKpisGeneral(){
+  const total=ALL.length; if(!total) return;
+
+  // Prints (todas las cartas con número)
+  const allPrints=ALL.map(c=>+c.number||0).filter(n=>n>0).sort((a,b)=>a-b);
+  const allWls=ALL.map(c=>+c.wishlists||0);
+  const wlTotal=allWls.reduce((s,w)=>s+w,0);
+
+  const printMed=allPrints.length?allPrints[Math.floor(allPrints.length/2)]:0;
+  const printMin=allPrints.length?Math.min(...allPrints):0;
+  const prints1=allPrints.filter(p=>p===1).length;
+  const prints10=allPrints.filter(p=>p<=10).length;
+  const prints100=allPrints.filter(p=>p<=100).length;
+  const prints1k=allPrints.filter(p=>p<=1000).length;
+
+  const wlMax=Math.max(0,...allWls);
+  const wlAvg=allWls.length?Math.round(wlTotal/allWls.length):0;
+  const wlOver100=allWls.filter(w=>w>=100).length;
+  const wlOver500=allWls.filter(w=>w>=500).length;
+  const wlOver1k=allWls.filter(w=>w>=1000).length;
+
+  const byQual={};ALL.forEach(c=>{const q=c.quality||'0';byQual[q]=(byQual[q]||0)+1;});
+  const q4=byQual['4']||0, q3=byQual['3']||0, q2=byQual['2']||0;
+
+  const byEd={};ALL.forEach(c=>{const e=+c.edition;if(e>0)byEd[e]=(byEd[e]||0)+1;});
+  const edMaxNum=Object.keys(byEd).map(Number).sort((a,b)=>b-a)[0]||0;
+
+  const uniqSeries=new Set(ALL.map(c=>c.series)).size;
+  const uniqChars=new Set(ALL.map(c=>c.character)).size;
+  const morphed=ALL.filter(c=>c.morphed==='Yes').length;
+  const trimmed=ALL.filter(c=>c.trimmed==='Yes').length;
+  const withFrame=ALL.filter(c=>c.frame&&c.frame.trim()).length;
+  const withTag=ALL.filter(c=>c.tag&&c.tag.trim()).length;
+
+  const kpis=[
+    {l:'Total cartas',         v:total,                                          s:`${uniqChars} personajes únicos`,                      c:'var(--accent2)'},
+    {l:'Series distintas',     v:uniqSeries,                                     s:`en ${edMaxNum} ediciones`,                            c:'var(--sky)'},
+    {l:'Print mediana global', v:'#'+printMed.toLocaleString(),                  s:'de toda la colección',                                c:'var(--rose)'},
+    {l:'Mejor print',          v:'#'+printMin.toLocaleString(),                  s:'print más bajo en colección',                         c:'var(--gold)'},
+    {l:'Prints #1',            v:prints1,                                        s:`${total?((prints1/total)*100).toFixed(1):0}% colección`, c:'var(--teal)'},
+    {l:'Prints ≤10',           v:prints10,                                       s:`${total?((prints10/total)*100).toFixed(1):0}% colección`, c:'var(--accent2)'},
+    {l:'Prints ≤100',          v:prints100,                                      s:`${total?((prints100/total)*100).toFixed(1):0}% colección`, c:'var(--sky)'},
+    {l:'Prints ≤1000',         v:prints1k,                                       s:`${total?((prints1k/total)*100).toFixed(1):0}% colección`, c:'var(--text3)'},
+    {l:'★★★★ en colección',  v:q4,                                             s:`${total?((q4/total)*100).toFixed(1):0}% tasa Q4`,     c:'var(--r4)'},
+    {l:'★★★ en colección',   v:q3,                                             s:`${total?((q3/total)*100).toFixed(1):0}% tasa Q3`,     c:'var(--r3)'},
+    {l:'★★ en colección',    v:q2,                                             s:`${total?((q2/total)*100).toFixed(1):0}% tasa Q2`,     c:'var(--sky)'},
+    {l:'WL media global',      v:wlAvg.toLocaleString(),                         s:'wishlists por carta',                                 c:'var(--gold)'},
+    {l:'WL más alta',          v:wlMax.toLocaleString(),                         s:'carta más deseada',                                   c:'var(--rose)'},
+    {l:'Cartas ≥100 WL',       v:wlOver100,                                      s:`${total?((wlOver100/total)*100).toFixed(1):0}% demandadas`, c:'var(--accent2)'},
+    {l:'Cartas ≥500 WL',       v:wlOver500,                                      s:'muy demandadas',                                      c:'var(--sky)'},
+    {l:'Cartas ≥1000 WL',      v:wlOver1k,                                       s:'extremadamente demandadas',                           c:'var(--gold)'},
+    {l:'Con marco',            v:withFrame,                                      s:`${total?((withFrame/total)*100).toFixed(1):0}% colección`, c:'var(--accent2)'},
+    {l:'Morphed',              v:morphed,                                        s:`Trimmed: ${trimmed}`,                                 c:'var(--text3)'},
+    {l:'Con tag',              v:withTag,                                        s:`${total?((withTag/total)*100).toFixed(1):0}% clasificadas`, c:'var(--teal)'},
+    {l:'WL total acumulada',   v:wlTotal.toLocaleString(),                       s:'wishlists en toda la colección',                      c:'var(--gold)'},
+  ];
+  document.getElementById('statKpiGridGeneral').innerHTML=kpis.map(k=>`
+    <div class="stat-kpi" style="--kc:${k.c}">
+      <div class="stat-kpi-label">${k.l}</div>
+      <div class="stat-kpi-val">${k.v}</div>
+      <div class="stat-kpi-sub">${k.s}</div>
+    </div>`).join('');
+}
+
+function _buildCollScore(){
+  const total=ALL.length; if(!total){document.getElementById('statCollScore').innerHTML='';return;}
+
+  const allPrints=ALL.map(c=>+c.number||0).filter(n=>n>0).sort((a,b)=>a-b);
+  const allWls=ALL.map(c=>+c.wishlists||0);
+  const q4=ALL.filter(c=>c.quality==='4').length;
+  const q3=ALL.filter(c=>c.quality==='3').length;
+
+  // — PRINT SCORE (0-100): qué tan bajos son los prints en colección
+  const printMed=allPrints.length?allPrints[Math.floor(allPrints.length/2)]:99999;
+  const prints1=allPrints.filter(p=>p===1).length;
+  const prints10=allPrints.filter(p=>p<=10).length;
+  const prints100=allPrints.filter(p=>p<=100).length;
+  const printScore=Math.max(0,Math.min(100,
+    100 - Math.log10(Math.max(1,printMed))*14
+    + (prints1/total)*30
+    + (prints10/total)*20
+    + (prints100/total)*10
+  ));
+
+  // — WL SCORE (0-100): qué tan deseada es la colección
+  const wlAvg=allWls.reduce((s,w)=>s+w,0)/allWls.length;
+  const wlOver500=allWls.filter(w=>w>=500).length;
+  const wlOver1k=allWls.filter(w=>w>=1000).length;
+  const wlScore=Math.min(100,
+    (wlAvg/8)*0.5 + (wlOver500/total)*100*0.35 + (wlOver1k/total)*100*0.15
+  );
+
+  // — QUALITY SCORE (0-100)
+  const qualScore=Math.min(100, (q4/total)*100*1.4 + (q3/total)*100*0.6);
+
+  // — COMPOSITE (pesos: prints 45%, wl 35%, calidad 20%)
+  const raw = printScore*0.45 + wlScore*0.35 + qualScore*0.20;
+  const score = Math.round(Math.min(100, raw));
+
+  const grades=[
+    {min:90,g:'S',col:'var(--teal)',   txt:'Colección extraordinaria'},
+    {min:75,g:'A',col:'var(--sky)',    txt:'Colección muy valiosa'},
+    {min:55,g:'B',col:'var(--accent2)',txt:'Buena colección'},
+    {min:35,g:'C',col:'var(--gold)',   txt:'Colección en crecimiento'},
+    {min:20,g:'D',col:'var(--rose)',   txt:'Colección modesta'},
+    {min:0, g:'F',col:'var(--text3)', txt:'Empieza a construirla'},
+  ];
+  const grade=grades.find(g=>score>=g.min)||grades[grades.length-1];
+
+  const printMin=allPrints.length?Math.min(...allPrints):0;
+  const wlMax=Math.max(0,...allWls);
+  const wlTotal=allWls.reduce((s,w)=>s+w,0);
+  const uniqSeries=new Set(ALL.map(c=>c.series)).size;
+
+  const bars=[
+    {l:'Score de Prints',  val:Math.round(printScore), col:'var(--rose)'},
+    {l:'Score de WL',      val:Math.round(wlScore),    col:'var(--gold)'},
+    {l:'Score de Calidad', val:Math.round(qualScore),  col:'var(--r4)'},
+  ];
+  const facts=[
+    ['Total cartas',        total],
+    ['Mejor print',         '#'+printMin.toLocaleString()],
+    ['Print mediana',       '#'+printMed.toLocaleString()],
+    ['Prints #1',           prints1+' ('+((prints1/total)*100).toFixed(1)+'%)'],
+    ['Prints ≤10',          prints10+' ('+((prints10/total)*100).toFixed(1)+'%)'],
+    ['WL media',            wlAvg.toFixed(1)],
+    ['WL más alta',         wlMax.toLocaleString()],
+    ['Cartas ≥500 WL',      wlOver500],
+    ['★★★★ en colec.',    q4+' ('+((q4/total)*100).toFixed(1)+'%)'],
+    ['★★★ en colec.',     q3+' ('+((q3/total)*100).toFixed(1)+'%)'],
+  ];
+
+  document.getElementById('statCollScore').innerHTML=`
+    <div class="coll-score-wrap">
+      <div class="coll-score-num">${score}</div>
+      <div class="coll-score-label">Collection Score</div>
+      <div class="coll-score-grade" style="background:${grade.col}22;color:${grade.col};border:1px solid ${grade.col}55">${grade.g} — ${grade.txt}</div>
+    </div>
+    <div class="coll-score-bars">
+      ${bars.map(b=>`
+        <div class="coll-score-bar-row">
+          <div class="coll-score-bar-label"><span>${b.l}</span><span style="color:${b.col};font-family:'JetBrains Mono',monospace">${b.val}/100</span></div>
+          <div class="coll-score-bar-track"><div class="coll-score-bar-fill" style="width:${b.val}%;background:${b.col}"></div></div>
+        </div>`).join('')}
+    </div>
+    <div class="coll-facts">
+      ${facts.map(([k,v])=>`<div class="coll-fact"><span>${k}</span><span>${v}</span></div>`).join('')}
+    </div>`;
+}
+
+function switchStatTab(tab){
+  document.querySelectorAll('.stat-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.stat-section').forEach(s=>s.classList.add('hidden'));
+  document.getElementById('stab-'+tab).classList.add('active');
+  document.getElementById('statsec-'+tab).classList.remove('hidden');
 }
 
 function destroyCharts(){
