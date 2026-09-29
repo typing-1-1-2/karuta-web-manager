@@ -154,12 +154,16 @@ function buildCharts(){
     datasets:[{data:ef.map(([,v])=>v),backgroundColor:'rgba(240,192,96,0.65)',borderRadius:6,borderSkipped:false}]
   },options:{...base,scales:{x:{...base.scales.x,ticks:{color:tc,font,maxRotation:35}},y:base.scales.y}}});
 
-  const q4ed={1:0,2:0,3:0,4:0,5:0,6:0,7:0};
-  GRABBED.filter(c=>c.quality==='4').forEach(c=>{const e=+c.edition;if(q4ed[e]!==undefined)q4ed[e]++;});
+  const q4edMap={};
+  GRABBED.filter(c=>c.quality==='4').forEach(c=>{const e=+c.edition;if(e>0){q4edMap[e]=(q4edMap[e]||0)+1;}});
+  const allEditions=[...new Set(ALL.map(c=>+c.edition).filter(e=>e>0))].sort((a,b)=>a-b);
+  allEditions.forEach(e=>{if(!q4edMap[e])q4edMap[e]=0;});
+  const q4edKeys=Object.keys(q4edMap).map(Number).sort((a,b)=>a-b);
+  const q4edColors=q4edKeys.map(e=>e<=2?'rgba(240,96,128,0.85)':e<=4?'rgba(165,147,255,0.75)':e<=6?'rgba(96,184,240,0.7)':'rgba(65,217,176,0.75)');
   charts.q4e=new C(document.getElementById('cQ4ByEd'),{type:'bar',data:{
-    labels:Object.keys(q4ed).map(e=>'Ed.'+e),
-    datasets:[{data:Object.values(q4ed),backgroundColor:'rgba(240,96,128,0.7)',borderRadius:6,borderSkipped:false}]
-  },options:{...base}});
+    labels:q4edKeys.map(e=>'Ed.'+e),
+    datasets:[{data:q4edKeys.map(e=>q4edMap[e]),backgroundColor:q4edColors,borderRadius:6,borderSkipped:false}]
+  },options:{...base,plugins:{...base.plugins,tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} ★★★★`}}}}});
 }
 
 function destroyCharts(){
