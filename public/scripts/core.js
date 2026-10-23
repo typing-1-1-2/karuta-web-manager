@@ -222,10 +222,16 @@ function _initLazy(){
     entries.forEach(e=>{
       if(!e.isIntersecting) return;
       const img=e.target;
-      if(img.dataset.src){ img.src=img.dataset.src; delete img.dataset.src; }
+      if(img.dataset.src){
+        const src=img.dataset.src;
+        delete img.dataset.src;
+        img.src=src;
+        // If the img fires onerror before observer fires (timing), rescue it
+        if(!img.onerror) img.onerror=()=>_imgError(img);
+      }
       _lazyObs.unobserve(img);
     });
-  },{rootMargin:'250px'});
+  },{rootMargin:'400px'});
 }
 
 function cardImgEl(character, edition, code){
@@ -281,10 +287,17 @@ function wireImgs(){
         _lazyObs.unobserve(img);
       }
     });
-    // Catch already-errored
+    // Catch already-errored or missed lazy loads
     document.querySelectorAll('.card-img:not([data-src])').forEach(img=>{
-      if(img.complete && img.naturalWidth===0 && img.src && !img.src.startsWith('data:') && !img.dataset.loaded)
-        _imgError(img);
+      if(img.complete && img.naturalWidth===0 && img.src && !img.src.startsWith('data:') && !img.dataset.retries)
+        _imgRetry(img);
+    });
+    // Re-observe any card-img with data-src that was missed
+    document.querySelectorAll('.card-img[data-src]').forEach(img=>{
+      if(!img.dataset.observed){
+        img.dataset.observed='1';
+        _lazyObs.observe(img);
+      }
     });
   });
 }
@@ -292,9 +305,25 @@ function wireImgs(){
 function _imgError(img){
   const fb=img.dataset.fallback;
   if(fb && img.src!==fb && (img.dataset.primary||'')!==fb){
-    img.onerror=()=>_showNoImg(img);
+    img.onerror=()=>_imgRetry(img);
     delete img.dataset.fallback;
     img.src=fb;
+  } else {
+    _imgRetry(img);
+  }
+}
+function _imgRetry(img){
+  // Retry once after a short delay before showing placeholder
+  const retries=+(img.dataset.retries||0);
+  if(retries<1){
+    img.dataset.retries='1';
+    const retrySrc=img.src;
+    img.onerror=()=>_showNoImg(img);
+    setTimeout(()=>{
+      if(img.naturalWidth>0) return; // already loaded meanwhile
+      img.src='';
+      requestAnimationFrame(()=>{ img.src=retrySrc; });
+    }, 1500);
   } else {
     _showNoImg(img);
   }
