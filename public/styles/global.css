@@ -188,8 +188,12 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
 .worker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
 .worker-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;transition:border-color .15s}
 .worker-card:hover{border-color:var(--border2)}
+.worker-card-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.worker-thumb{flex:0 0 44px;width:44px;padding-top:62px;border-radius:6px;overflow:hidden}
+.worker-card-head{flex:1;min-width:0}
 .worker-char{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.worker-series{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;margin-bottom:10px}
+.worker-series{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.worker-card-head .worker-series{margin-bottom:0}
 .worker-effort-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .effort-label{font-size:11px;color:var(--text3)}
 .effort-val{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:var(--gold)}
@@ -287,6 +291,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
 .modal-char-name{font-size:24px;font-weight:700;margin-bottom:4px;line-height:1.2}
 .modal-series{font-size:13px;color:var(--text2);margin-bottom:1rem;text-transform:uppercase;letter-spacing:.06em}
 .modal-stats{display:flex;flex-direction:column;gap:0;margin-bottom:1.25rem;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.modal-worker-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-bottom:1.25rem;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;background:var(--bg3)}
+.modal-worker-grid .stat-row{border-bottom:none;padding:3px 0}
 .modal-stat-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg3)}
 .modal-stat-row:last-child{border-bottom:none}
 .modal-stat-row:nth-child(even){background:var(--bg2)}

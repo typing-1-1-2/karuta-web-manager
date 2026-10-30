@@ -24,11 +24,17 @@ function renderWorkers(){
   const fields=[['worker.style','Style'],['worker.purity','Purity'],['worker.grabber','Grabber'],['worker.dropper','Dropper'],['worker.quickness','Quick'],['worker.toughness','Tough'],['worker.vanity','Vanity']];
   document.getElementById('workerGrid').innerHTML=list.slice(0,workersPage).map(c=>`
     <div class="worker-card" onclick="openCardModal('${esc(c.code||c.character)}')">
-      <div class="worker-char">${esc(c.character)}</div>
-      <div class="worker-series">${esc(c.series||'—')}</div>
+      <div class="worker-card-top">
+        <div class="card-img-wrap worker-thumb">${cardImgEl(c.character,c.edition||'1',c.code)}</div>
+        <div class="worker-card-head">
+          <div class="worker-char">${esc(c.character)}</div>
+          <div class="worker-series">${esc(c.series||'—')}</div>
+        </div>
+      </div>
       <div class="worker-effort-row"><span class="effort-label">Esfuerzo acumulado</span><span class="effort-val">${+c['worker.effort']||0}</span></div>
       <div class="stats-grid-sm">${fields.map(([k,l])=>{const v=c[k]||'?';return`<div class="stat-row"><span class="stat-name">${l}</span><span class="grade g${v}">${v}</span></div>`;}).join('')}</div>
     </div>`).join('')||`<div class="empty">${t('noResults')}</div>`;
+  wireImgs();
   document.getElementById('btnMoreWorkers').style.display=list.length>workersPage?'inline-block':'none';
 }
 

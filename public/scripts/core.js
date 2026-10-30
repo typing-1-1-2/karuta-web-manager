@@ -256,6 +256,10 @@ function cardImgEl(character, edition, code){
       if(!img) return;
       const el=document.getElementById(uid);
       if(!el) return;
+      // Custom image won: stop the lazy loader from later overwriting it back
+      // to the CDN url when this card scrolls into view (data-src must go).
+      delete el.dataset.src;
+      if(_lazyObs) _lazyObs.unobserve(el);
       el.src=img;
       el.classList.add('loaded');
       el.closest('.card-img-wrap')?.classList.remove('loading');
@@ -1308,12 +1312,17 @@ function _renderModal(){
     _row('Código',      `<span style="font-family:monospace;font-size:12px">${esc(c.code||'—')}</span>`),
   ].join('');
 
+  const workerFields=[['worker.style','Style'],['worker.purity','Purity'],['worker.grabber','Grabber'],['worker.dropper','Dropper'],['worker.quickness','Quick'],['worker.toughness','Tough'],['worker.vanity','Vanity']];
+  const workerGrades=workerFields.map(([k,l])=>{const v=c[k]||'?';return`<div class="stat-row"><span class="stat-name">${l}</span><span class="grade g${v}">${v}</span></div>`;}).join('');
+
   document.getElementById('modalInfoSide').innerHTML=
     `<button class="modal-close" onclick="closeModal()">✕</button>`+
     `<div style="font-size:11px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">${esc(c.series||'—')}</div>`+
     `<div class="modal-char-name">${esc(c.character)}</div>`+
     `<div style="margin-bottom:1.25rem"><span class="card-q-badge ${QB[q]||'bq0'}" style="position:static;display:inline-block">${QL[q]||q+'★'}</span></div>`+
-    `<div class="modal-stats">${rows}</div>`;
+    `<div class="modal-stats">${rows}</div>`+
+    `<div style="font-size:11px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Worker</div>`+
+    `<div class="modal-worker-grid">${workerGrades}</div>`;
 }
 
 function modalSetEffect(effectId){
